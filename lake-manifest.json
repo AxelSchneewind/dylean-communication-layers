@@ -1,0 +1,16 @@
+{"version": "1.3.0",
+ "packagesDir": ".lake/packages",
+ "packages":
+ [{"url": "https://github.com/BobDylean/dylean",
+   "type": "git",
+   "subDir": null,
+   "scope": "",
+   "rev": "cdf1401d5c245c1ac76778c3b5dbb2a7538abf29",
+   "name": "DY",
+   "manifestFile": "lake-manifest.json",
+   "inputRev": "main",
+   "inherited": false,
+   "configFile": "lakefile.toml"}],
+ "name": "«dylean-communication-layers»",
+ "lakeDir": ".lake",
+ "fixedToolchain": false}

@@ -1,0 +1,14 @@
+name = "dylean-communication-layers"
+version = "0.1.0"
+defaultTargets = ["Communication", "SingleAuthMessage"]
+
+[[require]]
+name = "DY"
+git = "https://github.com/BobDylean/dylean" 
+rev = "main"
+
+[[lean_lib]]
+name = "Communication"
+
+[[lean_lib]]
+name = "SingleAuthMessage"
