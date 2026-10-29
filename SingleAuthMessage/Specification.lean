@@ -65,6 +65,18 @@ inductive single_message_state where
   | ReceiverState (sender: Participant) (msg:single_message)
 deriving DecidableEq
 
+public
+def single_message_state.message (st : single_message_state) : single_message :=
+  match st with
+  | SenderState _sender msg => msg
+  | ReceiverState _sender msg => msg
+
+public
+def single_message_state.sender (st : single_message_state) : Participant :=
+  match st with
+  | SenderState sender _msg => sender
+  | ReceiverState sender _msg => sender
+
 inductive single_message_event where
   | SenderSentMsg (sender:Participant) (msg:single_message)
   | ReceiverReceivedMsg (sender receiver:Participant) (msg:single_message)
@@ -85,7 +97,7 @@ instance single_message.ps : ParseableSerializeable single_message := .make <|
   .triviallyIsomorphic
   (.bytes)
   (fun payload => { payload:=payload })
-  (fun {payload:=payload} => payload)
+  (fun { payload:=payload } => payload)
 
 -- TODO: necessary for what?
 public
@@ -171,22 +183,22 @@ def prepare_message (sender receiver : Participant) : Traceful Nat := do
       return state_id
 
 public
-def send_message (sender receiver : Participant) (state_id:Nat) : Traceful (Option Nat) := do
-  let st:single_message_state ← PersistentLocalState.getLocalState sender state_id
+def send_message (me other : Participant) (state_id:Nat) : Traceful Nat := do
+  let st:single_message_state ← PersistentLocalState.getLocalState me state_id
   match st with
     | single_message_state.SenderState r msg =>
         -- only send to the same participant that the message was prepared for
-        guard (r = receiver)
-        Communication.sendMessageAuthenticated sender msg.payload
-    | _ => return none
+        guard (r = other)
+        Communication.sendMessageAuthenticated me msg.payload
+    | _ => failure
 
 public
-def receive_message (me other : Participant) (msg_id : Nat) : Traceful (Option Nat) := do
+def receive_message (me other : Participant) (msg_id : Nat) : Traceful Nat := do
   let msg_bytes ← Communication.receiveMessageAuthenticated other msg_id
   let msg : single_message := {payload:=msg_bytes}
   ProtocolEvent.logEvent (single_message_event.ReceiverReceivedMsg other me msg)
   let state_id ← PersistentLocalState.storeLocalState me (single_message_state.ReceiverState other msg)
-  return some state_id
+  return state_id
 
 
 def single_message_state.compromise (stHandle: Nat): Traceful Nat := do

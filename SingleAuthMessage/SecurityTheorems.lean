@@ -20,23 +20,19 @@ theorem sender_authentication
     tr.Reachable reachability →
     tr.EventLogged/-At-/ (single_message_event.ReceiverReceivedMsg sender receiver msg)  /- time-/ →
     (
-      tr.EventLogged (single_message_event.SenderSentMsg sender msg) -- \/
-      -- or key of sender was compromised
+      tr.EventLogged (single_message_event.SenderSentMsg sender msg)
+      -- TODO: or sender was compromised
+      ∨ StateCompromised sender tr
     ) := by
       apply Trace.apply_Reachable_implies_Invariant
-      intro tr h_inv h_e -- trBefore
-      -- unfold Trace.EventLogged
-      have event_invariant : single_message_event.Invariant.invariant tr (single_message_event.ReceiverReceivedMsg sender receiver msg) :=
-        by
-        unfold Trace.Invariant at h_inv
-        simp [ProtocolEvent.EventInv.invariant]
-        constructor
-        . sorry
-        . sorry
+      intro tr h_trinv h_ev -- trBefore
+      have event_invariant : single_message_event.Invariant.invariant tr (single_message_event.ReceiverReceivedMsg sender receiver msg)
+      := by
+        have := Trace.EventLogged_imp_EventInv _ _ h_trinv h_ev
+        simp_all [ProtocolEvent.EventInv.invariant]
+        grind
       simp [ProtocolEvent.EventInv.invariant] at event_invariant
-      -- unfold [Trace.EventLogged] at event_invariant
-      exact event_invariant.right
--- let sender_authentication tr i sender receiver payload = ()
+      grind
 
 -- // This is the same securtiy lemma as above but with the events from the
 -- // communication layer. This allows us to argue with the `(prefix tr i)`

@@ -15,15 +15,17 @@ public section ProofTraceConfig
 class HasProofTrace extends HasExecTrace where
   [traceProof: ProofTraceTypes]
   [traceProof0: ProofTraceTypes.Has Network.ProofEntryT]
-  [traceProof1: ProofTraceTypes.Has Random.ProofEntryT]
-  [traceProof2: ProofTraceTypes.Has (ProtocolEvent.ProofEntryT single_message_event)]
-  [traceProof3: ProofTraceTypes.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
+  [traceProof1: ProofTraceTypes.Has Communication.ProofEntryT]
+  [traceProof2: ProofTraceTypes.Has Random.ProofEntryT]
+  [traceProof3: ProofTraceTypes.Has (ProtocolEvent.ProofEntryT single_message_event)]
+  [traceProof4: ProofTraceTypes.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
 
 attribute [reducible, scoped instance] HasProofTrace.traceProof
 attribute [reducible, scoped instance] HasProofTrace.traceProof0
 attribute [reducible, scoped instance] HasProofTrace.traceProof1
 attribute [reducible, scoped instance] HasProofTrace.traceProof2
 attribute [reducible, scoped instance] HasProofTrace.traceProof3
+attribute [reducible, scoped instance] HasProofTrace.traceProof4
 
 end ProofTraceConfig
 
@@ -31,11 +33,24 @@ public section BytesInvariants
 
 variable [HasProofTrace]
 
--- def stateLabel
---   (me other: Participant)
---   : Label
--- where
---   isCorrupt tr := StateCompromised me tr ∨ StateCompromised other tr
+def layerLabel
+  (me other: Participant)
+  : Label
+where
+  isCorrupt tr := StateCompromised me tr ∨ StateCompromised other tr
+
+def authenticatedLabel
+  (_me _other: Participant)
+  : Label := Label.pub
+
+variable (me:Participant)
+variable (other:Participant)
+variable (tr:ExecTrace)
+#check Label.pub.canFlow (layerLabel me other) tr
+
+theorem cf (me other : Participant) (tr:ExecTrace) : Label.pub.canFlow (layerLabel me other) tr
+  := by grind
+
 
 end BytesInvariants
 
@@ -76,29 +91,28 @@ instance single_message_state.Invariant : PersistentLocalState.CompromisableLoca
           Comparse.IsWellFormed (Bytes.KnowableBy Label.pub) msg tr
     invariant_later := by grind
     invariant_implies_KnowableBy me st tr := by
-      sorry
-      -- have cf: (Label.pub).canFlow (PersistentLocalState.label me st) tr.erase := by
-      --   grind
-      --   -- cases st
-      --   -- . simp [Label.canFlow, stateLabel, StateCompromised]
-      --   --   grind
-      --   -- . simp [Label.canFlow, stateLabel, StateCompromised]
-      --   --   grind
-      -- intro h
-      -- split at h
-      -- . have h1 := h.left; have h2 := h.right
-      --   grind
-      --   simp [Label.canFlow]
-      --   simp [single_message_state.IsWellFormed_eq]
-      --   -- simp [Comparse.IsWellFormed, Bytes.KnowableBy]
-      --   -- simp [Comparse.IsWellFormed, Bytes.KnowableBy] at h2
-      --   -- unfold Label.canFlow
-      --   -- unfold Label.canFlow at h2
-      --   -- unfold ParseableSerializeable.mf
-      --   -- unfold ParseableSerializeable.mf at h2
-      --   sorry
-      -- . let h1 := h.left; let h2 := h.right
-      --   grind
+      have cf: (Label.pub).canFlow (PersistentLocalState.label me st) tr.erase := by
+        grind
+        -- cases st
+        -- . simp [Label.canFlow, stateLabel, StateCompromised]
+        --   grind
+        -- . simp [Label.canFlow, stateLabel, StateCompromised]
+        --   grind
+      intro h
+      split at h
+      . have h1 := h.left; have h2 := h.right
+        -- simp [Label.canFlow]
+        simp [single_message_state.IsWellFormed_eq]
+        -- simp [Comparse.IsWellFormed, Bytes.KnowableBy]
+        -- simp [Comparse.IsWellFormed, Bytes.KnowableBy] at h2
+        -- unfold Label.canFlow
+        -- unfold Label.canFlow at h2
+        -- unfold ParseableSerializeable.mf
+        -- unfold ParseableSerializeable.mf at h2
+        sorry
+      . let h1 := h.left; let h2 := h.right
+        sorry
+        -- grind
 --     by
 --     have: (stateLabel me st.transcript).canFlow (PersistentLocalState.label me st) tr.erase := by
 --       cases st
@@ -106,19 +120,20 @@ instance single_message_state.Invariant : PersistentLocalState.CompromisableLoca
 --       grind
 --     grind [canFlowTrans]
 --
--- -- for monotonicity
--- theorem StateMyTurnInv_imp_Invariant
---   (participant: Participant) (st: StateMyTurn)
---   : PersistentLocalState.LocalStateInv.invariant participant st tr → (
---       st.otherDhPk.Invariant tr ∧
---       st.k.Invariant tr
---     )
--- := by
---   simp [PersistentLocalState.LocalStateInv.invariant]
---   grind
---
--- grind_pattern [grind_later] StateMyTurnInv_imp_Invariant => PersistentLocalState.LocalStateInv.invariant participant st tr
---
+-- for monotonicity
+theorem single_message_state_inv_imp_Invariant
+  (tr : ProofTrace) (participant: Participant) (st: single_message_state)
+  : PersistentLocalState.LocalStateInv.invariant participant st tr → (
+      st.message.payload.Invariant tr
+    )
+:= by
+  simp [PersistentLocalState.LocalStateInv.invariant]
+  split
+  . sorry
+  . sorry
+
+grind_pattern [grind_later] single_message_state_inv_imp_Invariant => PersistentLocalState.LocalStateInv.invariant participant st tr
+
 
 
 instance single_message_event.Invariant : ProtocolEvent.EventInv (single_message_event)
@@ -138,9 +153,10 @@ public section TraceInvariantConfig
 class HasTraceInvariant extends HasBytesInvariants where
   [traceInv: TraceInvariant]
   [traceInv0: TraceInvariant.Has Network.ProofEntryT]
-  [traceInv1: TraceInvariant.Has Random.ProofEntryT]
-  [traceInv2: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_event)]
-  [traceInv3: TraceInvariant.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
+  [traceInv1: TraceInvariant.Has Communication.ProofEntryT]
+  [traceInv2: TraceInvariant.Has Random.ProofEntryT]
+  [traceInv3: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_event)]
+  [traceInv4: TraceInvariant.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
   [attBaseThm: BaseAttackerKnowledgeTheorem]
   [attThm: AttackerKnowledgeTheorem]
 
@@ -149,6 +165,7 @@ attribute [           scoped instance] HasTraceInvariant.traceInv0
 attribute [           scoped instance] HasTraceInvariant.traceInv1
 attribute [           scoped instance] HasTraceInvariant.traceInv2
 attribute [           scoped instance] HasTraceInvariant.traceInv3
+attribute [           scoped instance] HasTraceInvariant.traceInv4
 attribute [           scoped instance] HasTraceInvariant.attBaseThm
 attribute [           scoped instance] HasTraceInvariant.attThm
 
@@ -176,13 +193,6 @@ theorem prepare_message.spec (sender receiver: Participant)
         sorry
       sorry
 
--- public
--- instance
---    (sender receiver  : Participant) (msg_id : Nat)
---   : HasGhostArgumentType (receive_message receiver sender msg_id) Usage
--- where
---   dummy := ()
-
 @[instance]
 theorem send_message.spec (me other: Participant) (state_id: Nat)
   : HoareTriple
@@ -200,14 +210,24 @@ theorem send_message.spec (me other: Participant) (state_id: Nat)
         trivial
 
 @[instance]
-theorem receive_message.spec (me other : Participant) (state_id: Nat)
+theorem receive_message.spec (me other : Participant) (msg_id: Nat)
   : HoareTriple
-    (receive_message me other state_id)
+    (receive_message me other msg_id)
     (fun _ => True)
-    (fun _ _ => True) := by
+    (fun h tr =>
+      exists (b:Bytes), tr.erase.EventLoggedAt (single_message_event.ReceiverReceivedMsg other me ({ payload:=b } :single_message)) h
+    ) := by
       apply HoareTriple.mk
       unfold receive_message
-      -- let spec := Communication.receiveLayerMessage.spec
+      let spec := Communication.receiveMessageAuthenticated.spec other msg_id
+      step with ⟨ ⟩
+      have pub : msg_bytes.Publishable tr := by grind
+      step_intro
+      step with ⟨ ⟩ by sorry
+      step with ⟨ ⟩ by sorry
+      have pub : msg_bytes.Publishable tr := by grind
+      have msg_eq : Trace.getAuthenticatedMessageSentAt msg_id tr.erase = msg_bytes := by sorry
+      simp [SubTraceInvariant.invariant]
       sorry
 
 
@@ -225,9 +245,15 @@ variable [HasTraceInvariant]
 
 -- Future work: the following section is boilerplate that could be meta-programmed
 section
+#check send_message.reachability.Input
+#check receive_message.reachability.Input
+#check send_message.reachability.PreCond
+#check receive_message.reachability.PreCond
+#check receive_message.reachability.step
+#check send_message.reachability.step
 public instance: ReachableImpliesInvariant prepare_message.reachability := .mk (fun (me, other) => prepare_message.spec me other)
 public instance: ReachableImpliesInvariant send_message.reachability := .mk (fun (me, other, s_id) => send_message.spec me other s_id)
-public instance: ReachableImpliesInvariant receive_message.reachability := .mk (fun (other, me, s_id) => receive_message.spec other me s_id)
+public instance: ReachableImpliesInvariant receive_message.reachability := .mk (fun (me, other, s_id) => receive_message.spec me other s_id)
 public instance: ReachableImpliesInvariant single_message_state.compromise.reachability := .mk (fun (stHandle) => single_message_state.compromise.spec stHandle)
 end
 

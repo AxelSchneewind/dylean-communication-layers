@@ -5,6 +5,10 @@ public import DY.Bytes
 public import DY.Actions.PersistentLocalState
 import DY.Meta.Step
 
+syntax "qed" : tactic
+macro_rules
+  | `(tactic|qed) => `(tactic|done)
+
 namespace DY.Communication
 
 variable [BytesFunctor]
@@ -24,6 +28,13 @@ inductive ExecEntryT where
   | Authenticated (sender : Participant) (msg : Bytes)
   | Confidential (receiver : Participant) (msg : Bytes)
   | ConfidentialAuthenticated (receiver sender : Participant) (msg : Bytes)
+
+public
+def ExecEntryT.payload (entry : ExecEntryT) : Bytes :=
+  match entry with
+  | Authenticated _sender msg => msg
+  | Confidential _receiver msg => msg
+  | ConfidentialAuthenticated _receiver _sender msg => msg
 
 -- TODO: attacker may know only non-confidential messages
 public
@@ -59,50 +70,100 @@ def receiveMessageAuthenticated [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
 public
 def _root_.DY.Trace.AuthenticatedMessageSentAt
   [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
+  (tr: ExecTrace) (msg: Bytes) (i: Nat)
+  : Prop
+:=
+  exists sender, tr.at? i = some (ExecEntryT.Authenticated sender msg)
+
+public
+def _root_.DY.Trace.AuthenticatedMessageSentAtBy
+  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
   (tr: ExecTrace) (sender : Participant) (msg: Bytes) (i: Nat)
   : Prop
 :=
   tr.at? i = some (ExecEntryT.Authenticated sender msg)
---
+
 public
 def _root_.DY.Trace.AuthenticatedMessageSent
+  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
+  (tr: ExecTrace) (msg: Bytes)
+  : Prop
+:=
+  exists i, tr.AuthenticatedMessageSentAt msg i
+
+public
+def _root_.DY.Trace.AuthenticatedMessageSentBy
   [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
   (tr: ExecTrace) (sender : Participant) (msg: Bytes)
   : Prop
 :=
-  exists i, tr.AuthenticatedMessageSentAt sender msg i
+  exists i, tr.AuthenticatedMessageSentAtBy sender msg i
 
--- public
--- def _root_.DY.Trace.getLayerMessageSentAt
---   [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
---   (i: Nat)
---   (tr: ExecTrace)
---   : Option Bytes
--- :=
---   match (tr.at? i: Option ExecEntryT) with
---   | none => none
---   | some entry => entry
---
--- public
--- theorem _root_.DY.Trace.LayerMessageSentAt_eq_getLayerMessageSentAt
---   [ExecTraceTypes]
---   [ExecTraceTypes.Has ExecEntryT]
---   (msg: Bytes) (i: Nat) (tr: ExecTrace)
---   : tr.LayerMessageSentAt msg i = (tr.getLayerMessageSentAt i = some msg)
--- := by
---   dsimp only [Trace.LayerMessageSentAt, Trace.getLayerMessageSentAt]
---   grind [cases ExecEntryT]
---
+public
+def _root_.DY.Trace.getAuthenticatedMessageSentAt
+  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
+  (i: Nat)
+  (tr: ExecTrace)
+  : Option Bytes
+:=
+  match (tr.at? i: Option ExecEntryT) with
+  | none => none
+  | some entry => entry.payload
+
+public
+def _root_.DY.Trace.getAuthenticatedMessageSentAtBy
+  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
+  (i: Nat)
+  (sender: Participant)
+  (tr: ExecTrace)
+  : Option Bytes
+:=
+  match (tr.at? i: Option ExecEntryT) with
+  | some (ExecEntryT.Authenticated s m) => if s = sender then m else none
+  | _ => none
+
+public
+theorem _root_.DY.Trace.AuthenticatedMessageSentAt_imp_getAuthenticatedMessageSentAt
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has ExecEntryT]
+  (msg: Bytes) (i: Nat) (tr: ExecTrace)
+  : tr.AuthenticatedMessageSentAt msg i → (tr.getAuthenticatedMessageSentAt i = some msg)
+:= by
+  intro h
+  dsimp only [Trace.AuthenticatedMessageSentAt, Trace.getAuthenticatedMessageSentAt]
+  unfold Trace.AuthenticatedMessageSentAt at h
+  let ⟨s, eq⟩ := h
+  rw [eq]
+  simp
+  unfold ExecEntryT.payload
+  simp
+  qed
+
+
+public
+theorem _root_.DY.Trace.AuthenticatedMessageSentAtBy_imp_getAuthenticatedMessageSentAtBy
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has ExecEntryT]
+  (sender : Participant) (msg: Bytes) (i: Nat) (tr: ExecTrace)
+  : tr.AuthenticatedMessageSentAtBy sender msg i → (tr.getAuthenticatedMessageSentAtBy i sender = some msg)
+:= by
+  intro h
+  dsimp only [Trace.AuthenticatedMessageSentAtBy, Trace.getAuthenticatedMessageSentAtBy]
+  unfold Trace.AuthenticatedMessageSentAtBy at h
+  rw [h]
+  simp
+  qed
+
 public
 theorem _root_.DY.Trace.AuthenticatedMessageSentAt_implies_AttackerKnows
   [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
   [BaseAttackerKnowledge] [AttackerKnowledge]
   [BaseAttackerKnowledge.Has baseAttackerKnowledge]
   (tr: ExecTrace) (sender : Participant) (msg: Bytes) (i: Nat)
-  : tr.AuthenticatedMessageSentAt sender msg i →
+  : tr.AuthenticatedMessageSentAtBy sender msg i →
     msg.AttackerKnows tr
 := by
-  dsimp only [Trace.AuthenticatedMessageSentAt]
+  dsimp only [Trace.AuthenticatedMessageSentAtBy]
   intro h
   apply Bytes.AttackerKnows.prove_from_base
   apply Trace.prove_BaseAttackerKnows baseAttackerKnowledge tr (ExecEntryT.Authenticated sender msg) msg i
@@ -194,8 +255,14 @@ theorem receiveMessageAuthenticated.spec
   | ExecEntryT.Authenticated s m =>
       have pub: m.Publishable tr := by simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]; grind
       simp
-      -- TODO: step through guard (s = sender)
-      sorry
+      by_cases cond : (s = sender)
+      . simp_all -- TODO: which theorems are used to simplify here?
+        -- TODO: step through guard True
+        sorry
+        -- step
+        -- grind [SubTraceInvariant.invariant]
+      . sorry
+        -- grind
   | ExecEntryT.Confidential s m => sorry
   | ExecEntryT.ConfidentialAuthenticated r s m => sorry
 
