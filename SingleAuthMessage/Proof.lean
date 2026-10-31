@@ -81,45 +81,21 @@ variable [HasBytesInvariants]
 
 instance single_message_state.Invariant : PersistentLocalState.CompromisableLocalStateInv single_message_state where
     invariant me st tr :=
-      match st with
-        | single_message_state.SenderState receiver msg =>
-          tr.erase.EventLogged (single_message_event.SenderSentMsg receiver msg) ∧
-          Comparse.IsWellFormed (Bytes.KnowableBy Label.pub) msg tr
-        | single_message_state.ReceiverState sender msg =>
-          tr.erase.EventLogged (single_message_event.SenderSentMsg me msg) ∧
-          tr.erase.EventLogged (single_message_event.ReceiverReceivedMsg sender me msg) ∧
-          Comparse.IsWellFormed (Bytes.KnowableBy Label.pub) msg tr
+        let msg := st.message
+        let sender := st.sender
+        msg.payload.Invariant tr ∧
+        (msg.payload.label tr).canFlow (authenticatedLabel me sender) tr.erase ∧
+        msg.payload.Publishable tr ∧
+        Comparse.IsWellFormed (Bytes.KnowableBy Label.pub) st tr ∧
+        tr.erase.EventLogged (single_message_event.SenderSentMsg st.sender st.message)
     invariant_later := by grind
     invariant_implies_KnowableBy me st tr := by
-      have cf: (Label.pub).canFlow (PersistentLocalState.label me st) tr.erase := by
-        grind
-        -- cases st
-        -- . simp [Label.canFlow, stateLabel, StateCompromised]
-        --   grind
-        -- . simp [Label.canFlow, stateLabel, StateCompromised]
-        --   grind
-      intro h
-      split at h
-      . have h1 := h.left; have h2 := h.right
-        -- simp [Label.canFlow]
-        simp [single_message_state.IsWellFormed_eq]
-        -- simp [Comparse.IsWellFormed, Bytes.KnowableBy]
-        -- simp [Comparse.IsWellFormed, Bytes.KnowableBy] at h2
-        -- unfold Label.canFlow
-        -- unfold Label.canFlow at h2
-        -- unfold ParseableSerializeable.mf
-        -- unfold ParseableSerializeable.mf at h2
-        sorry
-      . let h1 := h.left; let h2 := h.right
-        sorry
-        -- grind
---     by
---     have: (stateLabel me st.transcript).canFlow (PersistentLocalState.label me st) tr.erase := by
---       cases st
---       simp [Label.canFlow, stateLabel, StateCompromised]
---       grind
---     grind [canFlowTrans]
---
+      intro inv
+      simp [single_message_state.IsWellFormed_eq]
+      simp [single_message_state.IsWellFormed_eq] at inv
+      grind [canFlowTrans]
+      done
+
 -- for monotonicity
 theorem single_message_state_inv_imp_Invariant
   (tr : ProofTrace) (participant: Participant) (st: single_message_state)
@@ -128,9 +104,7 @@ theorem single_message_state_inv_imp_Invariant
     )
 := by
   simp [PersistentLocalState.LocalStateInv.invariant]
-  split
-  . sorry
-  . sorry
+  grind
 
 grind_pattern [grind_later] single_message_state_inv_imp_Invariant => PersistentLocalState.LocalStateInv.invariant participant st tr
 
