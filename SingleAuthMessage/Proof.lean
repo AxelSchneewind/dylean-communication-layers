@@ -84,8 +84,8 @@ instance single_message_state.Invariant : PersistentLocalState.CompromisableLoca
         let msg := st.message
         let sender := st.sender
         msg.payload.Invariant tr ∧
-        (msg.payload.label tr).canFlow (authenticatedLabel me sender) tr.erase ∧
         msg.payload.Publishable tr ∧
+        (msg.payload.label tr).canFlow (authenticatedLabel me sender) tr.erase ∧
         Comparse.IsWellFormed (Bytes.KnowableBy Label.pub) st tr ∧
         tr.erase.EventLogged (single_message_event.SenderSentMsg st.sender st.message)
     invariant_later := by grind
@@ -99,9 +99,7 @@ instance single_message_state.Invariant : PersistentLocalState.CompromisableLoca
 -- for monotonicity
 theorem single_message_state_inv_imp_Invariant
   (tr : ProofTrace) (participant: Participant) (st: single_message_state)
-  : PersistentLocalState.LocalStateInv.invariant participant st tr → (
-      st.message.payload.Invariant tr
-    )
+  : PersistentLocalState.LocalStateInv.invariant participant st tr → st.message.payload.Invariant tr
 := by
   simp [PersistentLocalState.LocalStateInv.invariant]
   grind
@@ -159,13 +157,20 @@ theorem prepare_message.spec (sender receiver: Participant)
       unfold prepare_message
       step with ⟨ fun _ => Label.pub, Usage.nothing ⟩ -- have to pass ghost arguments to genRand here
       step_intro
+      hoist
+      step_intro
       step by
         simp only [ProtocolEvent.EventInv.invariant]
         grind
       step by
         simp only [PersistentLocalState.LocalStateInv.invariant]
+        apply And.intro; sorry
+        apply And.intro; sorry
+        apply And.intro; sorry
+        apply And.intro; sorry
         sorry
-      sorry
+      trivial
+      done
 
 @[instance]
 theorem send_message.spec (me other: Participant) (state_id: Nat)
