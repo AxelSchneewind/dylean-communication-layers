@@ -20,26 +20,37 @@ inductive SecurityProperty where
 
 
 public
-inductive ExecEntryT where
-  | Authenticated (sender : Participant) (msg : Bytes)
-  | Confidential (receiver : Participant) (msg : Bytes)
-  | ConfidentialAuthenticated (receiver sender : Participant) (msg : Bytes)
+structure ExecEntryT where
+  payload : Bytes
+  sender : Option Participant
+  receiver : Option Participant
+  deriving DecidableEq
 
+-- constructors
+@[simp]
 public
-def ExecEntryT.payload (entry : ExecEntryT) : Bytes :=
-  match entry with
-  | Authenticated _sender msg => msg
-  | Confidential _receiver msg => msg
-  | ConfidentialAuthenticated _receiver _sender msg => msg
+def ExecEntryT.Authenticated (sender : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:=some sender, receiver:=none}
+@[simp]
+public
+def ExecEntryT.Confidential (receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:=none, receiver:= some receiver}
+@[simp]
+public
+def ExecEntryT.ConfidentialAuthenticated (sender receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:= some sender, receiver:= some receiver}
 
--- TODO: attacker may know only non-confidential messages
+@[simp]
+public
+def ExecEntryT.is_Authenticated (entry: ExecEntryT) : Prop := entry.sender.isSome
+@[simp]
+public
+def ExecEntryT.is_Confidential (entry : ExecEntryT) : Prop := entry.receiver.isSome
+@[simp]
+public
+def ExecEntryT.is_ConfidentialAuthenticated (entry : ExecEntryT) : Prop := entry.sender.isSome ∧ entry.receiver.isSome
+
+
 public
 def baseAttackerKnowledge [ExecTraceTypes]: SubBaseAttackerKnowledge ExecEntryT where
-  attackerKnows _ entry msg := match entry with
-    | ExecEntryT.Authenticated _sender m => m = msg
-    | _ => False
-    -- | ExecEntryT.Confidential _receiver m => False
-    -- | ExecEntryT.ConfidentialAuthenticated _receiver _sender _m => False
+  attackerKnows _ entry msg := entry.payload = msg -- ∧ ¬entry.is_Confidential ∨ (receiver compromised)
 
 
 public
@@ -53,11 +64,8 @@ public
 def receiveMessageAuthenticated [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT] (sender : Participant) (handle: Nat): Traceful Bytes :=
   do
   let entry: ExecEntryT ← getEntry handle
-  match entry with
-  | ExecEntryT.Authenticated s msg =>
-      guard (s = sender)
-      return msg
-  | _ => failure
+  guard (entry.sender = sender)
+  return entry.payload
 
 
 -- taken and modified from Network.lean, predicates and theorems analogous to the ones below have to be shown
@@ -115,7 +123,8 @@ def _root_.DY.Trace.getAuthenticatedMessageSentAtBy
   : Option Bytes
 :=
   match (tr.at? i: Option ExecEntryT) with
-  | some (ExecEntryT.Authenticated s m) => if s = sender then m else none
+  | some (s : ExecEntryT) => if s.sender = sender then s.payload else none
+  -- | some (ExecEntryT.Authenticated s m) => if s = sender then m else none
   | _ => none
 
 public
@@ -130,8 +139,6 @@ theorem _root_.DY.Trace.AuthenticatedMessageSentAt_imp_getAuthenticatedMessageSe
   unfold Trace.AuthenticatedMessageSentAt at h
   let ⟨s, eq⟩ := h
   rw [eq]
-  simp
-  unfold ExecEntryT.payload
   simp
 
 
@@ -168,7 +175,7 @@ end Execution
 
 section Proof
 
--- analogously to Network.lean
+-- analogously to Network.lean, predicates and theorems analogous to the ones below have to be shown
 
 public
 abbrev ProofEntryT := ExecEntryT
@@ -184,9 +191,10 @@ instance
   [ExecTraceTypes] [ProofTraceTypes] [BytesInvariants]
   : SubTraceInvariant ProofEntryT
 where
-  invariant tr entry := match entry with
-    | ExecEntryT.Authenticated _sender msg => msg.Publishable tr
-    | _ => True
+  invariant tr entry := entry.payload.Publishable tr
+    -- match entry with
+    -- | ExecEntryT.Authenticated _sender msg => msg.Publishable tr
+    -- | _ => True
 
 public
 instance baseAttackerKnowledgeTheorem
@@ -200,11 +208,11 @@ where
     intro invBefore attackerKnows
     simp [SubTraceInvariant.invariant, /-baseAttackerKnowledge, ErasableProofEntry.erase-/] at invBefore
     simp [/-SubTraceInvariant.invariant, -/baseAttackerKnowledge, ErasableProofEntry.erase] at attackerKnows
-    split at invBefore
-    . simp at attackerKnows
-      rw [←attackerKnows]
-      exact invBefore
-    . simp at attackerKnows
+    -- split at invBefore
+    -- . simp at attackerKnows
+    rw [←attackerKnows]
+    exact invBefore
+    -- . done -- simp at attackerKnows
 
 @[instance]
 public
@@ -224,7 +232,7 @@ theorem sendMessageAuthenticated.spec
   apply HoareTriple.mk
   unfold sendMessageAuthenticated
   dsimp only
-  step with ⟨ fun _ => ExecEntryT.Authenticated sender msg ⟩ by simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]
+  step with ⟨ fun _ => ExecEntryT.Authenticated sender msg ⟩ by simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Authenticated]
   trivial
 
 @[instance]
@@ -245,7 +253,12 @@ theorem receiveMessageAuthenticated.spec
   apply HoareTriple.mk
   unfold receiveMessageAuthenticated
   step
-  sorry
+  -- why are these lines required for step below? (otherwise monotonization error)
+  have: entry.payload.Publishable tr := by simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]; grind
+  rename_i h_msg; clear h_msg
+  step
+  step
+  grind
 
 end Proof
 
