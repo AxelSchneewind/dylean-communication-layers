@@ -12,14 +12,6 @@ variable [BytesFunctor]
 section Execution
 
 public
-inductive SecurityProperty where
-  | Confidential
-  | Authenticated
-  | ConfidentialAuthenticated
-  deriving DecidableEq
-
-
-public
 structure ExecEntryT where
   payload : Bytes
   sender : Option Participant
@@ -27,23 +19,23 @@ structure ExecEntryT where
   deriving DecidableEq
 
 -- constructors
-@[simp]
+@[simp, grind]
 public
 def ExecEntryT.Authenticated (sender : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:=some sender, receiver:=none}
-@[simp]
+@[simp, grind]
 public
 def ExecEntryT.Confidential (receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:=none, receiver:= some receiver}
-@[simp]
+@[simp, grind]
 public
 def ExecEntryT.ConfidentialAuthenticated (sender receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:= some sender, receiver:= some receiver}
 
-@[simp]
+@[simp, grind]
 public
 def ExecEntryT.is_Authenticated (entry: ExecEntryT) : Prop := entry.sender.isSome
-@[simp]
+@[simp, grind]
 public
 def ExecEntryT.is_Confidential (entry : ExecEntryT) : Prop := entry.receiver.isSome
-@[simp]
+@[simp, grind]
 public
 def ExecEntryT.is_ConfidentialAuthenticated (entry : ExecEntryT) : Prop := entry.sender.isSome ∧ entry.receiver.isSome
 
@@ -248,25 +240,92 @@ theorem receiveMessageAuthenticated.spec
   : HoareTriple
     (receiveMessageAuthenticated sender handle)
     (fun _ => True)
-    (fun msg tr => msg.Publishable tr)
+    (fun msg tr =>
+      msg.Publishable tr ∧
+      exists i, ((tr.at? i).map (ExecEntryT.sender)) = sender
+    )
 := by
   apply HoareTriple.mk
   unfold receiveMessageAuthenticated
   step
-  -- why are these lines required for step below? (otherwise monotonization error)
+  -- why are these 2 lines required for step below? (otherwise monotonization error)
   have: entry.payload.Publishable tr := by simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]; grind
   rename_i h_msg; clear h_msg
   step
   step
-  grind
+  constructor
+  . grind
+  . sorry
 
 end Proof
 
 
 section Reachability
 
--- TODO: reachabillity analogous to DY.Network
+-- taken from Network.lean, theorems analogous to the ones below have to be shown
 
+variable [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
+variable [BaseAttackerKnowledge] [AttackerKnowledge]
+
+public
+abbrev reachability : ReachabilityConfig where
+  Input := Participant × Bytes
+  PreCond i tr := (i.snd).AttackerKnows tr
+  step i   := ⟨ _, sendMessageAuthenticated i.fst i.snd ⟩
+
+public
+theorem receiveMessageAuthenticated.preservesReachability
+  [BaseAttackerKnowledge.Has baseAttackerKnowledge]
+  (config: ReachabilityConfig)
+  (sender : Participant)
+  (msg_handle: Nat)
+  : (receiveMessageAuthenticated sender msg_handle).PreservesReachability config (fun _ => True) (fun msg tr => msg.AttackerKnows tr)
+:= by
+  dsimp only [receiveMessageAuthenticated, Traceful.PreservesReachability]
+  intro tr h_reach h_pre
+  apply Traceful.PreservesReachabilityFrom_bind
+  · apply getEntry.preservesReachability
+  · grind
+  · grind
+  intro entry tr h_post h_reach h_le
+
+  apply Traceful.PreservesReachabilityFrom_bind
+  by_cases h:(entry.sender = some sender)
+  . simp [guard,h]
+    simp [Traceful.PreservesReachability, Traceful.PreservesReachabilityFrom /-, Traceful.run_mk-/]
+    sorry
+  . simp [guard,h]
+    simp [Traceful.PreservesReachability, Traceful.PreservesReachabilityFrom/-, Traceful.run_mk-/]
+    sorry
+  · grind
+  apply Traceful.PreservesReachabilityFrom_pure
+  · sorry
+
+  apply Bytes.AttackerKnows.prove_from_base
+  apply Trace.prove_BaseAttackerKnows baseAttackerKnowledge tr entry entry.payload msg_handle
+  · grind
+  simp [baseAttackerKnowledge]
+  exact reachability
+
+  sorry
+  sorry
+
+
+
+variable [ProofTraceTypes] [TraceInvariant]
+variable [BytesInvariants] [BytesInvariantsProofs]
+variable [ProofTraceTypes.Has ProofEntryT] [TraceInvariant.Has ProofEntryT]
+variable [BaseAttackerKnowledgeTheorem] [AttackerKnowledgeTheorem]
+
+public
+instance: ReachableImpliesInvariant reachability
+where
+  pf input := by
+    have ⟨ sender, payload ⟩ := input
+    apply HoareTriple.mk
+    have := (sendMessageAuthenticated.spec sender payload).pf
+    unfold hoareTriple at *
+    grind [Bytes.AttackerKnows_implies_Publishable]
 
 end Reachability
 
