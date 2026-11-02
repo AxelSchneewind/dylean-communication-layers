@@ -173,12 +173,12 @@ variable [HasExecTrace]
 
 -- *** Stateful code ***
 public
-def prepare_message (sender receiver : Participant) : Traceful Nat := do
-      let payload ← Random.genRand 32
-      let msg : single_message := { payload }
-      ProtocolEvent.logEvent (single_message_event.SenderSentMsg sender msg)
-      let state_id ← PersistentLocalState.storeLocalState sender (single_message_state.SenderState receiver msg)
-      return state_id
+def prepare_message (sender _receiver : Participant) : Traceful Nat := do
+  let payload ← Random.genRand 32
+  let msg : single_message := { payload }
+  ProtocolEvent.logEvent (single_message_event.SenderSentMsg sender msg)
+  let state_id ← PersistentLocalState.storeLocalState sender (single_message_state.SenderState sender msg)
+  return state_id
 
 public
 def send_message (me other : Participant) (state_id:Nat) : Traceful Nat := do

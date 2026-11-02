@@ -148,12 +148,13 @@ public section Proofs
 variable [HasTraceInvariant]
 
 @[instance]
-theorem prepare_message.spec (sender receiver: Participant)
+theorem prepare_message.spec (sender receiver : Participant)
   : HoareTriple
     (prepare_message sender receiver)
     (fun _ => True)
-    (fun state_id tr => True) := by
-      -- apply HoareTriple.mk
+    (fun _state_id _tr => True)
+  := by
+      apply HoareTriple.mk
       unfold prepare_message
       step with ⟨ fun _ => Label.pub, Usage.nothing ⟩ -- have to pass ghost arguments to genRand here
       step_intro
@@ -164,11 +165,13 @@ theorem prepare_message.spec (sender receiver: Participant)
         grind
       step by
         simp only [PersistentLocalState.LocalStateInv.invariant]
-        apply And.intro; sorry
-        apply And.intro; sorry
-        apply And.intro; sorry
-        apply And.intro; sorry
-        sorry
+        apply And.intro; simp [single_message_state.message]; grind
+        apply And.intro; simp [single_message_state.message]; grind
+        apply And.intro; simp [single_message_state.message]; grind
+        apply And.intro; grind
+        subst ev
+        simp [single_message_state.sender, single_message_state.message]
+        grind
       trivial
       done
 
@@ -232,8 +235,9 @@ section
 #check send_message.reachability.step
 public instance: ReachableImpliesInvariant prepare_message.reachability := .mk (fun (me, other) => prepare_message.spec me other)
 public instance: ReachableImpliesInvariant send_message.reachability := .mk (fun (me, other, s_id) => send_message.spec me other s_id)
-public instance: ReachableImpliesInvariant receive_message.reachability := .mk (fun (me, other, s_id) => receive_message.spec me other s_id)
 public instance: ReachableImpliesInvariant single_message_state.compromise.reachability := .mk (fun (stHandle) => single_message_state.compromise.spec stHandle)
+
+public instance: ReachableImpliesInvariant receive_message.reachability := sorry
 end
 
 #combine into ReachabilityTheorem from
