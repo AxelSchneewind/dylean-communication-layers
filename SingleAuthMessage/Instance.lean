@@ -22,7 +22,8 @@ from
   Network,
   Communication,
   Random,
-  ProtocolEvent single_message_event,
+  ProtocolEvent single_message_send_event,
+  ProtocolEvent single_message_receive_event,
   PersistentLocalState.CompromisableState single_message_state,
 
 instance: HasExecTrace where
@@ -33,7 +34,8 @@ from
   Network,
   Communication,
   Random,
-  ProtocolEvent single_message_event,
+  ProtocolEvent single_message_send_event,
+  ProtocolEvent single_message_receive_event,
   PersistentLocalState.CompromisableState single_message_state,
 
 instance: HasProofTrace where
@@ -52,7 +54,8 @@ from
   Network,
   Communication,
   Random,
-  ProtocolEvent single_message_event,
+  ProtocolEvent single_message_send_event,
+  ProtocolEvent single_message_receive_event,
   PersistentLocalState.CompromisableState single_message_state,
 
 #combine +toplevel into SubAttackerKnowledgeTheorem from

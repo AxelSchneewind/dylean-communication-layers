@@ -18,14 +18,14 @@ theorem sender_authentication
       (msg:single_message)
     : ∀ tr: ExecTrace,
     tr.Reachable reachability →
-    tr.EventLogged/-At-/ (single_message_event.ReceiverReceivedMsg sender receiver msg)  /- time-/ →
+    tr.EventLogged/-At-/ ({ sender, receiver, msg } : single_message_receive_event )  /- time-/ →
     (
-      tr.EventLogged (single_message_event.SenderSentMsg sender msg)
+      tr.EventLogged ({ sender, msg } : single_message_send_event)
       ∨ StateCompromised sender tr
     ) := by
       apply Trace.apply_Reachable_implies_Invariant
       intro tr h_trinv h_ev -- trBefore
-      have event_invariant : single_message_event.Invariant.invariant tr (single_message_event.ReceiverReceivedMsg sender receiver msg)
+      have event_invariant : single_message_receive_event.Invariant.invariant tr ({sender, receiver, msg} : single_message_receive_event)
       := by
         have := Trace.EventLogged_imp_EventInv _ _ h_trinv h_ev
         simp_all [ProtocolEvent.EventInv.invariant]

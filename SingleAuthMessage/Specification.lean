@@ -60,26 +60,28 @@ structure single_message [BytesFunctor] where
 deriving DecidableEq
 
 public
-inductive single_message_state where
-  | SenderState (sender: Participant) (msg:single_message)
-  | ReceiverState (sender: Participant) (msg:single_message)
+structure single_message_state where
+  sender : Participant
+  msg : single_message
+deriving DecidableEq
+
+@[simp, grind]
+public def single_message_state.SenderState (sender: Participant) (msg:single_message) : single_message_state := { sender, msg }
+@[simp, grind]
+public def single_message_state.ReceiverState (sender: Participant) (msg:single_message) : single_message_state := { sender, msg }
+
+
+public
+structure single_message_send_event where
+  sender : Participant
+  msg : single_message
 deriving DecidableEq
 
 public
-def single_message_state.message (st : single_message_state) : single_message :=
-  match st with
-  | SenderState _sender msg => msg
-  | ReceiverState _sender msg => msg
-
-public
-def single_message_state.sender (st : single_message_state) : Participant :=
-  match st with
-  | SenderState sender _msg => sender
-  | ReceiverState sender _msg => sender
-
-inductive single_message_event where
-  | SenderSentMsg (sender:Participant) (msg:single_message)
-  | ReceiverReceivedMsg (sender receiver:Participant) (msg:single_message)
+structure single_message_receive_event where
+  sender : Participant
+  receiver : Participant
+  msg : single_message
 deriving DecidableEq
 
 end Structures
@@ -113,28 +115,19 @@ grind_pattern [grind_later] single_message.IsWellFormed_eq => IsWellFormed pre x
 public
 instance single_message_state.ps : ParseableSerializeable single_message_state := .make <|
   .triviallyIsomorphic
-  (.prod .bool (.prod .slowString single_message.ps.mf))
-  (fun ⟨ tp, ⟨ peer, payload ⟩ ⟩  =>
-    match tp with
-    | true  => single_message_state.SenderState peer payload
-    | false => single_message_state.ReceiverState peer payload)
-  (fun
-    | single_message_state.SenderState peer payload => ⟨ true, ⟨ peer, payload ⟩ ⟩
-    | single_message_state.ReceiverState peer payload => ⟨ false, ⟨ peer, payload ⟩ ⟩)
+  (.prod .slowString single_message.ps.mf)
+  (fun ⟨ sender, msg ⟩ => {sender, msg} )
+  (fun { sender, msg } => ⟨sender, msg⟩ )
   (by grind)
   (by grind)
 
 public
 theorem single_message_state.IsWellFormed_eq
   (pre: Bytes → τ → Prop) [BytesCompatibleTracePred pre] (x: single_message_state) (tr: τ):
-  IsWellFormed pre x tr =
-    match x with
-    | .SenderState _r msg => pre msg.payload tr
-    | .ReceiverState _s msg => pre msg.payload tr
+  Comparse.IsWellFormed pre x tr =
+    pre x.msg.payload tr
 := by
-  split
-  . simp [Comparse.IsWellFormed, Comparse.ParseableSerializeable.mf]
-  . simp [Comparse.IsWellFormed, Comparse.ParseableSerializeable.mf]
+  simp [Comparse.IsWellFormed, Comparse.ParseableSerializeable.mf]
 
 grind_pattern single_message_state.IsWellFormed_eq => IsWellFormed pre x tr
 grind_pattern [grind_later] single_message_state.IsWellFormed_eq => IsWellFormed pre x tr
@@ -151,8 +144,9 @@ class HasExecTrace extends HasExecBytes where
   [traceExec0: ExecTraceTypes.Has Network.ExecEntryT]
   [traceExec1: ExecTraceTypes.Has Communication.ExecEntryT]
   [traceExec2: ExecTraceTypes.Has Random.ExecEntryT]
-  [traceExec3: ExecTraceTypes.Has (ProtocolEvent.ExecEntryT single_message_event)]
-  [traceExec4: ExecTraceTypes.Has (PersistentLocalState.CompromisableState.ExecEntryT single_message_state)]
+  [traceExec3: ExecTraceTypes.Has (ProtocolEvent.ExecEntryT single_message_send_event)]
+  [traceExec4: ExecTraceTypes.Has (ProtocolEvent.ExecEntryT single_message_receive_event)]
+  [traceExec5: ExecTraceTypes.Has (PersistentLocalState.CompromisableState.ExecEntryT single_message_state)]
   [attBase: BaseAttackerKnowledge]
 
 attribute [reducible, scoped instance] HasExecTrace.traceExec
@@ -161,6 +155,7 @@ attribute [reducible, scoped instance] HasExecTrace.traceExec1
 attribute [reducible, scoped instance] HasExecTrace.traceExec2
 attribute [reducible, scoped instance] HasExecTrace.traceExec3
 attribute [reducible, scoped instance] HasExecTrace.traceExec4
+attribute [reducible, scoped instance] HasExecTrace.traceExec5
 attribute [reducible, scoped instance] HasExecTrace.attBase
 
 
@@ -176,25 +171,21 @@ public
 def prepare_message (sender _receiver : Participant) : Traceful Nat := do
   let payload ← Random.genRand 32
   let msg : single_message := { payload }
-  ProtocolEvent.logEvent (single_message_event.SenderSentMsg sender msg)
+  ProtocolEvent.logEvent ({ sender, msg } : single_message_send_event)
   let state_id ← PersistentLocalState.storeLocalState sender (single_message_state.SenderState sender msg)
   return state_id
 
 public
-def send_message (me other : Participant) (state_id:Nat) : Traceful Nat := do
+def send_message (me _other : Participant) (state_id:Nat) : Traceful Nat := do
   let st:single_message_state ← PersistentLocalState.getLocalState me state_id
-  match st with
-    | single_message_state.SenderState r msg =>
-        -- only send to the same participant that the message was prepared for
-        guard (r = other)
-        Communication.sendMessageAuthenticated me msg.payload
-    | _ => failure
+  guard (st.sender = me)
+  Communication.sendMessageAuthenticated me st.msg.payload
 
 public
 def receive_message (me other : Participant) (msg_id : Nat) : Traceful Nat := do
   let msg_bytes ← Communication.receiveMessageAuthenticated other msg_id
   let msg : single_message := {payload:=msg_bytes}
-  ProtocolEvent.logEvent (single_message_event.ReceiverReceivedMsg other me msg)
+  ProtocolEvent.logEvent ({sender:=other, receiver:=me, msg} : single_message_receive_event )
   let state_id ← PersistentLocalState.storeLocalState me (single_message_state.ReceiverState other msg)
   return state_id
 
@@ -213,7 +204,7 @@ def StateCompromised
   (tr: ExecTrace)
   : Prop
 :=
-  (∃ recipient message, PersistentLocalState.LocalStateCompromised me (single_message_state.SenderState recipient message) tr) ∨
+  (∃ sender message, PersistentLocalState.LocalStateCompromised me (single_message_state.SenderState sender message) tr) ∨
   (∃ sender message, PersistentLocalState.LocalStateCompromised me (single_message_state.ReceiverState sender message) tr)
 
 theorem StateCompromised_le

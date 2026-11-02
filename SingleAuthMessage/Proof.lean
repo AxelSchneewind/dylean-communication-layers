@@ -17,8 +17,9 @@ class HasProofTrace extends HasExecTrace where
   [traceProof0: ProofTraceTypes.Has Network.ProofEntryT]
   [traceProof1: ProofTraceTypes.Has Communication.ProofEntryT]
   [traceProof2: ProofTraceTypes.Has Random.ProofEntryT]
-  [traceProof3: ProofTraceTypes.Has (ProtocolEvent.ProofEntryT single_message_event)]
-  [traceProof4: ProofTraceTypes.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
+  [traceProof3: ProofTraceTypes.Has (ProtocolEvent.ProofEntryT single_message_send_event)]
+  [traceProof4: ProofTraceTypes.Has (ProtocolEvent.ProofEntryT single_message_receive_event)]
+  [traceProof5: ProofTraceTypes.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
 
 attribute [reducible, scoped instance] HasProofTrace.traceProof
 attribute [reducible, scoped instance] HasProofTrace.traceProof0
@@ -26,6 +27,7 @@ attribute [reducible, scoped instance] HasProofTrace.traceProof1
 attribute [reducible, scoped instance] HasProofTrace.traceProof2
 attribute [reducible, scoped instance] HasProofTrace.traceProof3
 attribute [reducible, scoped instance] HasProofTrace.traceProof4
+attribute [reducible, scoped instance] HasProofTrace.traceProof5
 
 end ProofTraceConfig
 
@@ -39,17 +41,11 @@ def layerLabel
 where
   isCorrupt tr := StateCompromised me tr ∨ StateCompromised other tr
 
+@[simp]
 def authenticatedLabel
   (_me _other: Participant)
   : Label := Label.pub
 
-variable (me:Participant)
-variable (other:Participant)
-variable (tr:ExecTrace)
-#check Label.pub.canFlow (layerLabel me other) tr
-
-theorem cf (me other : Participant) (tr:ExecTrace) : Label.pub.canFlow (layerLabel me other) tr
-  := by grind
 
 
 end BytesInvariants
@@ -76,18 +72,15 @@ public section TraceInvariant
 
 variable [HasBytesInvariants]
 
--- def invariant (me: Participant) (st : single_message_state) (tr : ProofTrace) := Comparse.IsWellFormed (Bytes.KnowableBy (stateLabel me)) st tr
--- #print invariant
-
 instance single_message_state.Invariant : PersistentLocalState.CompromisableLocalStateInv single_message_state where
     invariant me st tr :=
-        let msg := st.message
+        let msg := st.msg
         let sender := st.sender
         msg.payload.Invariant tr ∧
         msg.payload.Publishable tr ∧
         (msg.payload.label tr).canFlow (authenticatedLabel me sender) tr.erase ∧
         Comparse.IsWellFormed (Bytes.KnowableBy Label.pub) st tr ∧
-        tr.erase.EventLogged (single_message_event.SenderSentMsg st.sender st.message)
+        tr.erase.EventLogged ({ sender:=st.sender, msg:=st.msg } : single_message_send_event)
     invariant_later := by grind
     invariant_implies_KnowableBy me st tr := by
       intro inv
@@ -99,7 +92,7 @@ instance single_message_state.Invariant : PersistentLocalState.CompromisableLoca
 -- for monotonicity
 theorem single_message_state_inv_imp_Invariant
   (tr : ProofTrace) (participant: Participant) (st: single_message_state)
-  : PersistentLocalState.LocalStateInv.invariant participant st tr → st.message.payload.Invariant tr
+  : PersistentLocalState.LocalStateInv.invariant participant st tr → st.msg.payload.Invariant tr
 := by
   simp [PersistentLocalState.LocalStateInv.invariant]
   grind
@@ -108,14 +101,16 @@ grind_pattern [grind_later] single_message_state_inv_imp_Invariant => Persistent
 
 
 
-instance single_message_event.Invariant : ProtocolEvent.EventInv (single_message_event)
+instance single_message_send_event.Invariant : ProtocolEvent.EventInv (single_message_send_event)
 where
   invariant tr ev :=
-    match ev with
-    | .SenderSentMsg _sender msg => msg.payload.Invariant tr
-        ∧ Bytes.KnowableBy (Label.pub) msg.payload tr
-    | .ReceiverReceivedMsg sender _receiver msg => msg.payload.Invariant tr
-        ∧ tr.erase.EventLogged (SenderSentMsg sender msg)
+    Bytes.KnowableBy (Label.pub) ev.msg.payload tr
+
+instance single_message_receive_event.Invariant : ProtocolEvent.EventInv (single_message_receive_event)
+where
+  invariant tr ev :=
+    Bytes.KnowableBy (Label.pub) ev.msg.payload tr
+    ∧ (tr.erase.EventLogged ({ sender:=ev.sender, msg:=ev.msg } : single_message_send_event ))
 
 end TraceInvariant
 
@@ -127,8 +122,9 @@ class HasTraceInvariant extends HasBytesInvariants where
   [traceInv0: TraceInvariant.Has Network.ProofEntryT]
   [traceInv1: TraceInvariant.Has Communication.ProofEntryT]
   [traceInv2: TraceInvariant.Has Random.ProofEntryT]
-  [traceInv3: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_event)]
-  [traceInv4: TraceInvariant.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
+  [traceInv3: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_send_event)]
+  [traceInv4: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_receive_event)]
+  [traceInv5: TraceInvariant.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
   [attBaseThm: BaseAttackerKnowledgeTheorem]
   [attThm: AttackerKnowledgeTheorem]
 
@@ -138,6 +134,7 @@ attribute [           scoped instance] HasTraceInvariant.traceInv1
 attribute [           scoped instance] HasTraceInvariant.traceInv2
 attribute [           scoped instance] HasTraceInvariant.traceInv3
 attribute [           scoped instance] HasTraceInvariant.traceInv4
+attribute [           scoped instance] HasTraceInvariant.traceInv5
 attribute [           scoped instance] HasTraceInvariant.attBaseThm
 attribute [           scoped instance] HasTraceInvariant.attThm
 
@@ -161,16 +158,18 @@ theorem prepare_message.spec (sender receiver : Participant)
       hoist
       step_intro
       step by
-        simp only [ProtocolEvent.EventInv.invariant]
-        grind
+        have : payload = ev.msg.payload := by grind
+        simp only [ProtocolEvent.EventInv.invariant, Bytes.KnowableBy]
+        grind [single_message_send_event]
       step by
         simp only [PersistentLocalState.LocalStateInv.invariant]
-        apply And.intro; simp [single_message_state.message]; grind
-        apply And.intro; simp [single_message_state.message]; grind
-        apply And.intro; simp [single_message_state.message]; grind
-        apply And.intro; grind
+        apply And.intro; simp; grind
+        apply And.intro; simp; grind
+        apply And.intro; simp; grind
+        apply And.intro; simp; grind
         subst ev
-        simp [single_message_state.sender, single_message_state.message]
+        have : Trace.EventLogged ({ sender, msg } : single_message_send_event) tr.erase := by assumption
+        simp
         grind
       trivial
       done
@@ -180,37 +179,42 @@ theorem send_message.spec (me other: Participant) (state_id: Nat)
   : HoareTriple
     (send_message me other state_id)
     (fun _ => True)
-    (fun _ _ => True) := by
-      -- apply HoareTriple.mk
-      unfold send_message
-      step
-      split
-      . step
-        -- let spec := Communication.sendMessageAuthenticated.spec
-        sorry
-      . step
-        trivial
+    (fun _ _ => True)
+  := by
+    apply HoareTriple.mk
+    unfold send_message
+    step
+    let st : single_message_state := by assumption
+    step with ⟨ ⟩
+    step with ⟨ ⟩ by
+      have : single_message_state.Invariant.invariant me st tr := by grind
+      simp [PersistentLocalState.LocalStateInv.invariant] at this
+      grind
+    trivial
 
 @[instance]
-theorem receive_message.spec (me : Participant) (other : Participant) (msg_id: Nat)
+theorem receive_message.spec (me other : Participant) (msg_id: Nat)
   : HoareTriple
     (receive_message me other msg_id)
     (fun _ => True)
-    (fun h tr =>
-      exists (b:Bytes), tr.erase.EventLoggedAt (single_message_event.ReceiverReceivedMsg other me ({ payload:=b } :single_message)) h
+    (fun h tr => -- TODO: Nontrivial postcondition causes type error for reachability configuration
+      exists (payload:Bytes), tr.erase.EventLogged ({ sender:=other, receiver:=me, msg:={ payload } }: single_message_receive_event)
     ) := by
       apply HoareTriple.mk
       unfold receive_message
-      let spec := Communication.receiveMessageAuthenticated.spec other msg_id
       step with ⟨ ⟩
-      have pub : msg_bytes.Publishable tr := by grind
+      have m_pub : msg_bytes.Publishable tr := by grind
+      have m_inv : msg_bytes.Invariant tr := by grind
       step_intro
+      have : msg_bytes = msg.payload := by grind
+      step with ⟨ ⟩ by
+        subst msg
+        simp [ProtocolEvent.EventInv.invariant]
+        constructor
+        . grind
+        . sorry
       step with ⟨ ⟩ by sorry
-      step with ⟨ ⟩ by sorry
-      have pub : msg_bytes.Publishable tr := by grind
-      have msg_eq : Trace.getAuthenticatedMessageSentAt msg_id tr.erase = msg_bytes := by sorry
-      -- simp [SubTraceInvariant.invariant]
-      sorry
+      grind
 
 
 
@@ -221,23 +225,43 @@ theorem single_message_state.compromise.spec (stHandle: Nat)
 
 end Proofs
 
-section ReachabilityImpliesInvariant
+section Reachability
 
 variable [HasTraceInvariant]
 
 -- Future work: the following section is boilerplate that could be meta-programmed
 section
-#check send_message.reachability.Input
-#check receive_message.reachability.Input
-#check send_message.reachability.PreCond
-#check receive_message.reachability.PreCond
-#check receive_message.reachability.step
-#check send_message.reachability.step
+
+-- ReachableImpliesInvariant.mk requires postcondition to be (fun _ _ => True)
 public instance: ReachableImpliesInvariant prepare_message.reachability := .mk (fun (me, other) => prepare_message.spec me other)
 public instance: ReachableImpliesInvariant send_message.reachability := .mk (fun (me, other, s_id) => send_message.spec me other s_id)
 public instance: ReachableImpliesInvariant single_message_state.compromise.reachability := .mk (fun (stHandle) => single_message_state.compromise.spec stHandle)
 
-public instance: ReachableImpliesInvariant receive_message.reachability := sorry
+variable [ProofTraceTypes] [TraceInvariant]
+variable [BytesInvariants] [BytesInvariantsProofs]
+variable [ProofTraceTypes.Has Communication.ProofEntryT] [TraceInvariant.Has Communication.ProofEntryT]
+variable [BaseAttackerKnowledgeTheorem] [AttackerKnowledgeTheorem]
+
+public
+instance: ReachableImpliesInvariant receive_message.reachability where
+  pf input :=
+  by
+    have ⟨ me, other, s_id ⟩ := input
+    have spec := (receive_message.spec me other s_id).pf
+    have ⟨ me, other, s_id ⟩ := input
+    apply HoareTriple.mk
+    have spec := (receive_message.spec me other s_id).pf
+    unfold hoareTriple at *
+    simp_all [receive_message.reachability]
+    intro tr tr_inv
+    -- intro tr pre tr_inv
+    -- have spec := spec tr tr_inv
+    sorry
+    -- simp only [ProtocolEvent.EventInv, single_message_event.Invariant]
+    -- grind [single_message_event.Invariant, Bytes.AttackerKnows_implies_Publishable]
+
+
+
 end
 
 #combine into ReachabilityTheorem from
@@ -247,7 +271,7 @@ end
   receive_message,
   single_message_state.compromise,
 
-end ReachabilityImpliesInvariant
+end Reachability
 
 section LabelLemma
 
