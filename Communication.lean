@@ -210,7 +210,7 @@ where
 
 @[instance]
 public
-theorem sendMessageAuthenticated.spec
+theorem sendMessageAuthenticated.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
   [ExecTraceTypes.Has ExecEntryT]
@@ -231,7 +231,7 @@ theorem sendMessageAuthenticated.spec
 
 @[instance]
 public
-theorem receiveMessageAuthenticated.spec
+theorem receiveMessageAuthenticated.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
   [ExecTraceTypes.Has ExecEntryT]
@@ -338,7 +338,7 @@ where
   pf input := by
     have ⟨ sender, payload ⟩ := input
     apply HoareTriple.mk
-    have := (sendMessageAuthenticated.spec sender payload).pf
+    have := (sendMessageAuthenticated.proof sender payload).pf
     unfold hoareTriple at *
     grind [Bytes.AttackerKnows_implies_Publishable]
 
