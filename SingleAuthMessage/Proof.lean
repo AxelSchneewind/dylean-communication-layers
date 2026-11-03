@@ -198,7 +198,7 @@ theorem receive_message.spec (me other : Participant) (msg_id: Nat)
     (receive_message me other msg_id)
     (fun _ => True)
     (fun h tr => -- TODO: Nontrivial postcondition causes type error for reachability configuration
-      exists (payload:Bytes), tr.erase.EventLogged ({ sender:=other, receiver:=me, msg:={ payload } }: single_message_receive_event)
+      ∃ (payload:Bytes), tr.erase.EventLogged (single_message_receive_event.mk other me {payload})
     ) := by
       apply HoareTriple.mk
       unfold receive_message
@@ -207,6 +207,9 @@ theorem receive_message.spec (me other : Participant) (msg_id: Nat)
       have m_inv : msg_bytes.Invariant tr := by grind
       step_intro
       have : msg_bytes = msg.payload := by grind
+      rename_i mb mb1
+      -- have to clear for step to succeed
+      clear mb1
       step with ⟨ ⟩ by
         subst msg
         simp [ProtocolEvent.EventInv.invariant]
