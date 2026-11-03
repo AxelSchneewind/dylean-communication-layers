@@ -244,7 +244,11 @@ theorem receiveMessageAuthenticated.spec
     (fun _ => True)
     (fun msg tr =>
       msg.Publishable tr ∧
+      (
       tr.erase.AuthenticatedMessageSentAtBy sender msg handle
+      -- can model compromisation here
+      -- ∨ ∃ st, PersistentLocalState.LocalStateCompromised sender st
+      )
     )
 := by
   apply HoareTriple.mk
@@ -252,10 +256,9 @@ theorem receiveMessageAuthenticated.spec
   step
   have: entry.payload.Publishable tr := by simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]; grind
   rename_i h_entry
-  -- how to get this statement from getEntry call? postcondition not strong enough
+  -- FIXME: how to get this proposition from getEntry call? postcondition not strong enough
   have entry_at_handle : tr.erase.at? handle = some entry := by sorry -- grind[tr.at?_eq_some]
-  -- why is this required for step below? (otherwise monotonization error)
-  -- How to keep this hypothesis?
+  -- h_entry has to be cleared to avoid monotonization error
   clear h_entry
   step
   rename_i entry_at_handle sender_match
