@@ -45,6 +45,7 @@ def baseAttackerKnowledge [ExecTraceTypes]: SubBaseAttackerKnowledge ExecEntryT 
   attackerKnows _ entry msg := entry.payload = msg -- ∧ ¬entry.is_Confidential ∨ (receiver compromised)
 
 
+-- don't include receiver in interface
 public
 def sendMessageAuthenticated [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT] (sender : Participant) (msg: Bytes): Traceful Nat :=
   do
@@ -57,6 +58,7 @@ def receiveMessageAuthenticated [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
   do
   let entry: ExecEntryT ← getEntry handle
   guard (entry.sender = sender)
+  guard (entry.receiver = none)
   return entry.payload
 
 
@@ -242,20 +244,30 @@ theorem receiveMessageAuthenticated.spec
     (fun _ => True)
     (fun msg tr =>
       msg.Publishable tr ∧
-      exists i, ((tr.at? i).map (ExecEntryT.sender)) = sender
+      tr.erase.AuthenticatedMessageSentAtBy sender msg handle
     )
 := by
   apply HoareTriple.mk
   unfold receiveMessageAuthenticated
   step
-  -- why are these 2 lines required for step below? (otherwise monotonization error)
   have: entry.payload.Publishable tr := by simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]; grind
-  rename_i h_msg; clear h_msg
+  rename_i h_entry
+  -- how to get this statement from getEntry call? postcondition not strong enough
+  have entry_at_handle : tr.erase.at? handle = some entry := by sorry -- grind[tr.at?_eq_some]
+  -- why is this required for step below? (otherwise monotonization error)
+  -- How to keep this hypothesis?
+  clear h_entry
+  step
+  rename_i entry_at_handle sender_match
   step
   step
+  rename_i h_receiver h_x
   constructor
   . grind
-  . sorry
+  . simp[h_x]
+    have : entry = ExecEntryT.mk x (some sender) none := by grind[ExecEntryT]
+    simp[Trace.AuthenticatedMessageSentAtBy, ←h_x, ←this]
+    grind
 
 end Proof
 
