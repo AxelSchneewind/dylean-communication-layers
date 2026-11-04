@@ -143,10 +143,11 @@ class HasExecTrace extends HasExecBytes where
   [traceExec: ExecTraceTypes]
   [traceExec0: ExecTraceTypes.Has Network.ExecEntryT]
   [traceExec1: ExecTraceTypes.Has Communication.ExecEntryT]
-  [traceExec2: ExecTraceTypes.Has Random.ExecEntryT]
-  [traceExec3: ExecTraceTypes.Has (ProtocolEvent.ExecEntryT single_message_send_event)]
-  [traceExec4: ExecTraceTypes.Has (ProtocolEvent.ExecEntryT single_message_receive_event)]
-  [traceExec5: ExecTraceTypes.Has (PersistentLocalState.CompromisableState.ExecEntryT single_message_state)]
+  [traceExec2: ExecTraceTypes.Has Communication.Compromise.ExecEntryT]
+  [traceExec3: ExecTraceTypes.Has Random.ExecEntryT]
+  [traceExec4: ExecTraceTypes.Has (ProtocolEvent.ExecEntryT single_message_send_event)]
+  [traceExec5: ExecTraceTypes.Has (ProtocolEvent.ExecEntryT single_message_receive_event)]
+  [traceExec6: ExecTraceTypes.Has (PersistentLocalState.CompromisableState.ExecEntryT single_message_state)]
   [attBase: BaseAttackerKnowledge]
 
 attribute [reducible, scoped instance] HasExecTrace.traceExec
@@ -156,9 +157,8 @@ attribute [reducible, scoped instance] HasExecTrace.traceExec2
 attribute [reducible, scoped instance] HasExecTrace.traceExec3
 attribute [reducible, scoped instance] HasExecTrace.traceExec4
 attribute [reducible, scoped instance] HasExecTrace.traceExec5
+attribute [reducible, scoped instance] HasExecTrace.traceExec6
 attribute [reducible, scoped instance] HasExecTrace.attBase
-
-
 
 end ExecTraceConfig
 
@@ -166,7 +166,6 @@ public section Specification
 
 variable [HasExecTrace]
 
--- *** Stateful code ***
 public
 def prepare_message (sender _receiver : Participant) : Traceful Nat := do
   let payload ← Random.genRand 32
@@ -189,7 +188,6 @@ def receive_message (me other : Participant) (msg_id : Nat) : Traceful Nat := do
   let state_id ← PersistentLocalState.storeLocalState me (single_message_state.ReceiverState other msg)
   return state_id
 
-
 def single_message_state.compromise (stHandle: Nat): Traceful Nat := do
   PersistentLocalState.compromise single_message_state stHandle
 
@@ -198,26 +196,6 @@ end Specification
 public section SecurityPredicates
 
 variable [HasExecTrace]
-
-def StateCompromised
-  (me: Participant)
-  (tr: ExecTrace)
-  : Prop
-:=
-  (∃ sender message, PersistentLocalState.LocalStateCompromised me (single_message_state.SenderState sender message) tr) ∨
-  (∃ sender message, PersistentLocalState.LocalStateCompromised me (single_message_state.ReceiverState sender message) tr)
-
-theorem StateCompromised_le
-  (me: Participant)
-  (tr1 tr2: ExecTrace)
-  : tr1 ≤ tr2 →
-    StateCompromised me tr1 →
-    StateCompromised me tr2
-:= by
-  simp only [StateCompromised]
-  grind
-
-grind_pattern StateCompromised_le => tr1 ≤ tr2, StateCompromised me tr1
 
 end SecurityPredicates
 

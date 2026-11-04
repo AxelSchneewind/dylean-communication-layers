@@ -21,6 +21,7 @@ instance: HasExecBytes where
 from
   Network,
   Communication,
+  Communication.Compromise,
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
@@ -33,6 +34,7 @@ instance: HasExecTrace where
 from
   Network,
   Communication,
+  Communication.Compromise,
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
@@ -53,6 +55,7 @@ instance: HasBytesInvariants where
 from
   Network,
   Communication,
+  Communication.Compromise,
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,

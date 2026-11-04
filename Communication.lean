@@ -11,12 +11,21 @@ variable [BytesFunctor]
 
 section Execution
 
+namespace Compromise
+
+public
+structure ParticipantCompromiseEvent where
+  participant: Participant
+
+#combine into ExecEntryT, baseAttackerKnowledge from ProtocolEvent ParticipantCompromiseEvent
+
+end Compromise
+
 public
 structure ExecEntryT where
   payload : Bytes
   sender : Option Participant
   receiver : Option Participant
-  deriving DecidableEq
 
 -- constructors
 @[simp, grind]
@@ -29,147 +38,136 @@ def ExecEntryT.Confidential (receiver : Participant) (payload : Bytes) : ExecEnt
 public
 def ExecEntryT.ConfidentialAuthenticated (sender receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:= some sender, receiver:= some receiver}
 
-@[simp, grind]
-public
-def ExecEntryT.is_Authenticated (entry: ExecEntryT) : Prop := entry.sender.isSome
-@[simp, grind]
-public
-def ExecEntryT.is_Confidential (entry : ExecEntryT) : Prop := entry.receiver.isSome
-@[simp, grind]
-public
-def ExecEntryT.is_ConfidentialAuthenticated (entry : ExecEntryT) : Prop := entry.sender.isSome ∧ entry.receiver.isSome
-
-
 public
 def baseAttackerKnowledge [ExecTraceTypes]: SubBaseAttackerKnowledge ExecEntryT where
-  attackerKnows _ entry msg := entry.payload = msg -- ∧ ¬entry.is_Confidential ∨ (receiver compromised)
+  attackerKnows _ entry msg := entry.payload = msg -- ∧ ¬entry.is_Confidential ∨ (participantCompromised receiver)
 
 
--- don't include receiver in interface
+
+
+-- wrapper around getEntry with stronger postcondition
+-- TODO: find a better solution
 public
-def sendMessageAuthenticated [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT] (sender : Participant) (msg: Bytes): Traceful Nat :=
+def getEntryStronger
+  [ExecTraceTypes] {EntryT: Type} [ExecTraceTypes.Has EntryT]
+  (timestamp: Nat)
+  : Traceful EntryT
+:=
+  Traceful.mk (fun tr =>
+    let result := tr.at? timestamp
+    (result, ⟨ tr, by grind ⟩ )
+  )
+
+@[instance]
+public
+theorem getEntryStronger.spec
+  [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
+  {ExecEntryT ProofEntryT: Type}
+  [ExecEntryAssociatedWithProofEntry ExecEntryT ProofEntryT]
+  [ErasableProofEntry ExecEntryT ProofEntryT]
+  [SubTraceInvariant ProofEntryT]
+  [ExecTraceTypes.Has ExecEntryT]
+  [ProofTraceTypes.Has ProofEntryT]
+  [TraceInvariant.Has ProofEntryT]
+  (timestamp: Nat)
+  : HoareTriple
+    (getEntryStronger timestamp: Traceful ExecEntryT)
+    (fun _ => True)
+    (fun entry tr =>
+      ∃ proofEntry: ProofEntryT,
+      entry = ErasableProofEntry.erase proofEntry ∧
+      SubTraceInvariant.invariant (tr.prefix timestamp) proofEntry ∧
+      tr.at? timestamp = some proofEntry
+    )
+:= by
+  apply HoareTriple.mk
+  simp only [hoareTriple, wp, getEntryStronger, Traceful.run_mk]
+  intro trProof h_pre h_inv
+  exists trProof
+  split
+  · grind
+  simp only [h_inv, Trace.le_refl, and_true]
+  rename_i trProof execEntry heq
+  cases h: (tr_proof'.at? timestamp: Option ProofEntryT)
+  · simp_all [ProofTrace.Entry.at?_eq_none_erase]
+  rename_i proofEntry
+  exists proofEntry
+  have := ProofTrace.Entry.at?_eq_some_erase tr_proof' timestamp proofEntry h
+  constructor
+  · grind
+  rewrite [← TraceInvariant.Has.inv_commutes]
+  grind [Trace.at?_eq_some, Trace.invariant_at]
+
+
+public
+theorem getEntryStronger.preservesReachability
+  [ExecTraceTypes]
+  {ExecEntryT: Type}
+  [ExecTraceTypes.Has ExecEntryT]
+  (config: ReachabilityConfig)
+  (timestamp: Nat)
+  : Traceful.PreservesReachability config
+    (getEntryStronger timestamp: Traceful ExecEntryT)
+    (fun _ => True)
+    (fun entry tr => tr.at? timestamp = some entry)
+:= by
+  simp only [Traceful.PreservesReachability, Traceful.PreservesReachabilityFrom, getEntryStronger, Traceful.run_mk]
+  grind
+
+
+public
+def compromiseParticipant
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has Compromise.ExecEntryT]
+  (participant : Participant): Traceful Unit := do
+  ProtocolEvent.logEvent (Compromise.ParticipantCompromiseEvent.mk participant)
+
+
+public
+def sendMessageAuthenticated
+  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
+  (sender : Participant) (msg: Bytes): Traceful Nat :=
   do
   let entry: ExecEntryT := ExecEntryT.Authenticated sender msg
   appendEntry entry
 
--- receive message from sender to receiver through channel, with required security property.
 public
-def receiveMessageAuthenticated [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT] (sender : Participant) (handle: Nat): Traceful Bytes :=
+def receiveMessageAuthenticated
+  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
+  (sender : Participant) (handle: Nat): Traceful Bytes :=
   do
-  let entry: ExecEntryT ← getEntry handle
+  let entry: ExecEntryT ← getEntryStronger handle
   guard (entry.sender = sender)
   guard (entry.receiver = none)
   return entry.payload
 
+-- could add definitions like MessageSentAt from Network.lean
 
--- taken and modified from Network.lean, predicates and theorems analogous to the ones below have to be shown
--- TODO: what do these _root_ definitions do? Are they needed
-
-public
-def _root_.DY.Trace.AuthenticatedMessageSentAt
-  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
-  (tr: ExecTrace) (msg: Bytes) (i: Nat)
-  : Prop
-:=
-  exists sender, tr.at? i = some (ExecEntryT.Authenticated sender msg)
 
 public
-def _root_.DY.Trace.AuthenticatedMessageSentAtBy
-  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
-  (tr: ExecTrace) (sender : Participant) (msg: Bytes) (i: Nat)
-  : Prop
-:=
-  tr.at? i = some (ExecEntryT.Authenticated sender msg)
-
-public
-def _root_.DY.Trace.AuthenticatedMessageSent
-  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
-  (tr: ExecTrace) (msg: Bytes)
-  : Prop
-:=
-  exists i, tr.AuthenticatedMessageSentAt msg i
-
-public
-def _root_.DY.Trace.AuthenticatedMessageSentBy
-  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
-  (tr: ExecTrace) (sender : Participant) (msg: Bytes)
-  : Prop
-:=
-  exists i, tr.AuthenticatedMessageSentAtBy sender msg i
-
-public
-def _root_.DY.Trace.getAuthenticatedMessageSentAt
-  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
-  (i: Nat)
-  (tr: ExecTrace)
-  : Option Bytes
-:=
-  match (tr.at? i: Option ExecEntryT) with
-  | none => none
-  | some entry => entry.payload
-
-public
-def _root_.DY.Trace.getAuthenticatedMessageSentAtBy
-  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
-  (i: Nat)
-  (sender: Participant)
-  (tr: ExecTrace)
-  : Option Bytes
-:=
-  match (tr.at? i: Option ExecEntryT) with
-  | some (s : ExecEntryT) => if s.sender = sender then s.payload else none
-  -- | some (ExecEntryT.Authenticated s m) => if s = sender then m else none
-  | _ => none
-
-public
-theorem _root_.DY.Trace.AuthenticatedMessageSentAt_imp_getAuthenticatedMessageSentAt
+def participantCorrupted
   [ExecTraceTypes]
-  [ExecTraceTypes.Has ExecEntryT]
-  (msg: Bytes) (i: Nat) (tr: ExecTrace)
-  : tr.AuthenticatedMessageSentAt msg i → (tr.getAuthenticatedMessageSentAt i = some msg)
-:= by
-  intro h
-  dsimp only [Trace.AuthenticatedMessageSentAt, Trace.getAuthenticatedMessageSentAt]
-  unfold Trace.AuthenticatedMessageSentAt at h
-  let ⟨s, eq⟩ := h
-  rw [eq]
-  simp
+  [ExecTraceTypes.Has Compromise.ExecEntryT]
+  (tr : ExecTrace) (participant : Participant) : Prop
+    := tr.EventLogged (Compromise.ParticipantCompromiseEvent.mk participant)
 
-
-public
-theorem _root_.DY.Trace.AuthenticatedMessageSentAtBy_imp_getAuthenticatedMessageSentAtBy
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has ExecEntryT]
-  (sender : Participant) (msg: Bytes) (i: Nat) (tr: ExecTrace)
-  : tr.AuthenticatedMessageSentAtBy sender msg i → (tr.getAuthenticatedMessageSentAtBy i sender = some msg)
-:= by
-  intro h
-  dsimp only [Trace.AuthenticatedMessageSentAtBy, Trace.getAuthenticatedMessageSentAtBy]
-  unfold Trace.AuthenticatedMessageSentAtBy at h
-  rw [h]
-  simp
-
-public
-theorem _root_.DY.Trace.AuthenticatedMessageSentAt_implies_AttackerKnows
-  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
-  [BaseAttackerKnowledge] [AttackerKnowledge]
-  [BaseAttackerKnowledge.Has baseAttackerKnowledge]
-  (tr: ExecTrace) (sender : Participant) (msg: Bytes) (i: Nat)
-  : tr.AuthenticatedMessageSentAtBy sender msg i →
-    msg.AttackerKnows tr
-:= by
-  dsimp only [Trace.AuthenticatedMessageSentAtBy]
-  intro h
-  apply Bytes.AttackerKnows.prove_from_base
-  apply Trace.prove_BaseAttackerKnows baseAttackerKnowledge tr (ExecEntryT.Authenticated sender msg) msg i
-  · grind
-  simp [baseAttackerKnowledge]
 
 end Execution
 
 section Proof
 
--- analogously to Network.lean, predicates and theorems analogous to the ones below have to be shown
+namespace Compromise
+
+public instance
+  [ExecTraceTypes] [ProofTraceTypes]
+  : ProtocolEvent.EventInv ParticipantCompromiseEvent
+  where
+    invariant _ _ := True
+
+#combine into ProofEntryT, SubTraceInvariant, SubBaseAttackerKnowledgeTheorem from
+  ProtocolEvent ParticipantCompromiseEvent
+
+end Compromise
 
 public
 abbrev ProofEntryT := ExecEntryT
@@ -179,6 +177,31 @@ instance: ErasableProofEntry ExecEntryT ProofEntryT := ErasableProofEntry.defaul
 
 public
 instance: ExecEntryAssociatedWithProofEntry ExecEntryT ProofEntryT where
+
+-- TODO: where to put this theorem?
+-- needed for isCorrupt_later
+omit [BytesFunctor] in
+public theorem
+participantCorrupted_later
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has Compromise.ExecEntryT]
+  (tr1 tr2 : ExecTrace) (participant : Participant) :
+    tr1 ≤ tr2 → participantCorrupted tr1 participant → participantCorrupted tr2 participant
+  := by
+    unfold participantCorrupted
+    grind
+
+public
+class HigherLevelInvariants [BytesFunctor] [ExecTraceTypes] [ProofTraceTypes] where
+  authenticated : ProofTrace → Option Participant → Option Participant → Bytes → Prop
+
+  authenticated_later : ∀ tr1 tr2 sender receiver payload,
+    tr1 ≤ tr2 → authenticated tr1 sender receiver payload →
+    authenticated tr2 sender receiver payload
+
+grind_pattern [grind_later] HigherLevelInvariants.authenticated_later =>
+tr1 ≤ tr2, HigherLevelInvariants.authenticated tr1 sender receiver payload
+
 
 public
 instance
@@ -202,11 +225,26 @@ where
     intro invBefore attackerKnows
     simp [SubTraceInvariant.invariant, /-baseAttackerKnowledge, ErasableProofEntry.erase-/] at invBefore
     simp [/-SubTraceInvariant.invariant, -/baseAttackerKnowledge, ErasableProofEntry.erase] at attackerKnows
-    -- split at invBefore
-    -- . simp at attackerKnows
     rw [←attackerKnows]
-    exact invBefore
-    -- . done -- simp at attackerKnows
+    grind
+
+@[instance]
+theorem compromiseParticipant.proof
+  [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
+  [BytesInvariants] [BytesInvariantsProofs]
+  [HigherLevelInvariants]
+  [ExecTraceTypes.Has ExecEntryT]
+  [ExecTraceTypes.Has Compromise.ExecEntryT]
+  [ProofTraceTypes.Has ProofEntryT]
+  [ProofTraceTypes.Has Compromise.ProofEntryT]
+  [TraceInvariant.Has ProofEntryT]
+  [TraceInvariant.Has Compromise.ProofEntryT]
+  (participant: Participant)
+  : HoareTriple (compromiseParticipant participant) (fun _ => True) (fun _ _ => True)
+:= by
+  unfold compromiseParticipant
+  step by simp[ProtocolEvent.EventInv.invariant]
+  trivial
 
 @[instance]
 public
@@ -235,6 +273,7 @@ theorem receiveMessageAuthenticated.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
   [ExecTraceTypes.Has ExecEntryT]
+  [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
   [TraceInvariant.Has ProofEntryT]
   (sender: Participant)
@@ -245,9 +284,8 @@ theorem receiveMessageAuthenticated.proof
     (fun msg tr =>
       msg.Publishable tr ∧
       (
-      tr.erase.AuthenticatedMessageSentAtBy sender msg handle
-      -- can model compromisation here
-      -- ∨ ∃ st, PersistentLocalState.LocalStateCompromised sender st
+      tr.erase.at? handle = some (ExecEntryT.mk msg (some sender) none)
+      ∨ participantCorrupted tr.erase sender
       )
     )
 := by
@@ -257,7 +295,10 @@ theorem receiveMessageAuthenticated.proof
   have: entry.payload.Publishable tr := by simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]; grind
   rename_i h_entry
   -- FIXME: how to get this proposition from getEntry call? postcondition not strong enough
-  have entry_at_handle : tr.erase.at? handle = some entry := by sorry -- grind[tr.at?_eq_some]
+  have entry_at_handle : tr.erase.at? handle = some entry := by
+    simp[Trace.at?_eq_some, ErasableProofEntry.erase] at h_entry
+    simp[Trace.at?_eq_some, Trace.erase_at, ProofTrace.Entry.erase_eq_imp_exists, ErasableProofEntry.erase]
+    grind
   -- h_entry has to be cleared to avoid monotonization error
   clear h_entry
   step
@@ -269,7 +310,7 @@ theorem receiveMessageAuthenticated.proof
   . grind
   . simp[h_x]
     have : entry = ExecEntryT.mk x (some sender) none := by grind[ExecEntryT]
-    simp[Trace.AuthenticatedMessageSentAtBy, ←h_x, ←this]
+    simp[←h_x, ←this]
     grind
 
 end Proof
@@ -277,9 +318,7 @@ end Proof
 
 section Reachability
 
--- taken from Network.lean, theorems analogous to the ones below have to be shown
-
-variable [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
+variable [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT] [ExecTraceTypes.Has Compromise.ExecEntryT]
 variable [BaseAttackerKnowledge] [AttackerKnowledge]
 
 public
@@ -299,7 +338,7 @@ theorem receiveMessageAuthenticated.preservesReachability
   dsimp only [receiveMessageAuthenticated, Traceful.PreservesReachability]
   intro tr h_reach h_pre
   apply Traceful.PreservesReachabilityFrom_bind
-  · apply getEntry.preservesReachability
+  · apply getEntryStronger.preservesReachability
   · grind
   · grind
   intro entry tr h_post h_reach h_le
