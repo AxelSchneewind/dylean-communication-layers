@@ -209,6 +209,7 @@ end
 
 #combine into ReachabilityConfig from
   Network,
+  Communication,
   prepare_message,
   send_message,
   receive_message,
