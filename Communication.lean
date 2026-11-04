@@ -206,16 +206,20 @@ tr1 ≤ tr2, HigherLevelInvariants.authenticated tr1 sender receiver payload
 public
 instance
   [ExecTraceTypes] [ProofTraceTypes] [BytesInvariants]
+  [user_inv : HigherLevelInvariants]
   : SubTraceInvariant ProofEntryT
 where
-  invariant tr entry := entry.payload.Publishable tr
-    -- match entry with
-    -- | ExecEntryT.Authenticated _sender msg => msg.Publishable tr
-    -- | _ => True
+  invariant tr entry :=
+    entry.payload.Publishable tr
+    ∧ user_inv.authenticated tr entry.sender entry.receiver entry.payload
+  -- TODO: user-defined invariant, no events for now
+  -- see DyLibraries/COmmunication/Core/Invariants
+  -- TODO: event for participant-corruption
 
 public
 instance baseAttackerKnowledgeTheorem
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant] [BytesInvariants]
+  [HigherLevelInvariants]
   [ExecTraceTypes.Has ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
   [TraceInvariant.Has ProofEntryT]:
@@ -251,6 +255,7 @@ public
 theorem sendMessageAuthenticated.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
+  [HigherLevelInvariants]
   [ExecTraceTypes.Has ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
   [TraceInvariant.Has ProofEntryT]
@@ -264,7 +269,10 @@ theorem sendMessageAuthenticated.proof
   apply HoareTriple.mk
   unfold sendMessageAuthenticated
   dsimp only
-  step with ⟨ fun _ => ExecEntryT.Authenticated sender msg ⟩ by simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Authenticated]
+  step with ⟨ fun _ => ExecEntryT.Authenticated sender msg ⟩ by
+    simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Authenticated]
+    -- TODO: use proof for higher level invariants
+    sorry
   trivial
 
 @[instance]
@@ -272,6 +280,7 @@ public
 theorem receiveMessageAuthenticated.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
+  [HigherLevelInvariants]
   [ExecTraceTypes.Has ExecEntryT]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
@@ -368,6 +377,7 @@ theorem receiveMessageAuthenticated.preservesReachability
 
 variable [ProofTraceTypes] [TraceInvariant]
 variable [BytesInvariants] [BytesInvariantsProofs]
+variable [HigherLevelInvariants]
 variable [ProofTraceTypes.Has ProofEntryT] [TraceInvariant.Has ProofEntryT]
 variable [BaseAttackerKnowledgeTheorem] [AttackerKnowledgeTheorem]
 

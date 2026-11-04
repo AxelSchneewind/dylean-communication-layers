@@ -81,6 +81,11 @@ public section TraceInvariant
 
 variable [HasBytesInvariants]
 
+instance : Communication.HigherLevelInvariants where
+  authenticated tr sender receiver entry := True
+  authenticated_later := sorry
+
+
 instance single_message_state.Invariant : PersistentLocalState.CompromisableLocalStateInv single_message_state where
     invariant me st tr :=
         let msg := st.msg
@@ -247,6 +252,7 @@ public instance: ReachableImpliesInvariant send_message.reachability := .mk (fun
 
 variable [ProofTraceTypes] [TraceInvariant]
 variable [BytesInvariants] [BytesInvariantsProofs]
+variable [Communication.HigherLevelInvariants]
 variable [ProofTraceTypes.Has Communication.ProofEntryT] [TraceInvariant.Has Communication.ProofEntryT]
 variable [BaseAttackerKnowledgeTheorem] [AttackerKnowledgeTheorem]
 
