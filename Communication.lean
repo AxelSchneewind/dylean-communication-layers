@@ -7,43 +7,6 @@ import DY.Meta.Step
 
 namespace DY.Communication
 
-variable [BytesFunctor]
-
-section Execution
-
-namespace Compromise
-
-public
-structure ParticipantCompromiseEvent where
-  participant: Participant
-
-#combine into ExecEntryT, baseAttackerKnowledge from ProtocolEvent ParticipantCompromiseEvent
-
-end Compromise
-
-public
-structure ExecEntryT where
-  payload : Bytes
-  sender : Option Participant
-  receiver : Option Participant
-
--- constructors
-@[simp, grind]
-public
-def ExecEntryT.Authenticated (sender : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:=some sender, receiver:=none}
-@[simp, grind]
-public
-def ExecEntryT.Confidential (receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:=none, receiver:= some receiver}
-@[simp, grind]
-public
-def ExecEntryT.ConfidentialAuthenticated (sender receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:= some sender, receiver:= some receiver}
-
-public
-def baseAttackerKnowledge [ExecTraceTypes]: SubBaseAttackerKnowledge ExecEntryT where
-  attackerKnows _ entry msg := entry.payload = msg -- ∧ ¬entry.is_Confidential ∨ (participantCompromised receiver)
-
-
-
 
 -- wrapper around getEntry with stronger postcondition
 -- TODO: find a better solution
@@ -113,6 +76,41 @@ theorem getEntryStronger.preservesReachability
 := by
   simp only [Traceful.PreservesReachability, Traceful.PreservesReachabilityFrom, getEntryStronger, Traceful.run_mk]
   grind
+
+variable [BytesFunctor]
+
+section Execution
+
+namespace Compromise
+
+public
+structure ParticipantCompromiseEvent where
+  participant: Participant
+
+#combine into ExecEntryT, baseAttackerKnowledge from ProtocolEvent ParticipantCompromiseEvent
+
+end Compromise
+
+public
+structure ExecEntryT where
+  payload : Bytes
+  sender : Option Participant
+  receiver : Option Participant
+
+-- constructors
+@[simp, grind]
+public
+def ExecEntryT.Authenticated (sender : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:=some sender, receiver:=none}
+@[simp, grind]
+public
+def ExecEntryT.Confidential (receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:=none, receiver:= some receiver}
+@[simp, grind]
+public
+def ExecEntryT.ConfidentialAuthenticated (sender receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:= some sender, receiver:= some receiver}
+
+public
+def baseAttackerKnowledge [ExecTraceTypes]: SubBaseAttackerKnowledge ExecEntryT where
+  attackerKnows _ entry msg := entry.payload = msg -- ∧ ¬entry.is_Confidential ∨ (participantCompromised receiver)
 
 
 public
