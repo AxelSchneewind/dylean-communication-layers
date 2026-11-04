@@ -232,12 +232,6 @@ theorem receive_message.proof
       grind
 
 
-
-@[instance]
-theorem single_message_state.compromise.proof (stHandle: Nat)
-  : HoareTriple (single_message_state.compromise stHandle) (fun _ => True) (fun _ _ => True)
-:= by unfold single_message_state.compromise; step; grind
-
 end Proofs
 
 section Reachability
@@ -250,7 +244,6 @@ section
 -- ReachableImpliesInvariant.mk requires postcondition to be (fun _ _ => True)
 public instance: ReachableImpliesInvariant prepare_message.reachability := .mk (fun (me, other) => prepare_message.proof me other)
 public instance: ReachableImpliesInvariant send_message.reachability := .mk (fun (me, other, s_id) => send_message.proof me other s_id)
-public instance: ReachableImpliesInvariant single_message_state.compromise.reachability := .mk (fun (stHandle) => single_message_state.compromise.proof stHandle)
 
 variable [ProofTraceTypes] [TraceInvariant]
 variable [BytesInvariants] [BytesInvariantsProofs]
@@ -284,7 +277,6 @@ end
   prepare_message,
   send_message,
   receive_message,
-  single_message_state.compromise,
 
 end Reachability
 

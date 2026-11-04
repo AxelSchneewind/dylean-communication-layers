@@ -188,9 +188,6 @@ def receive_message (me other : Participant) (msg_id : Nat) : Traceful Nat := do
   let state_id ← PersistentLocalState.storeLocalState me (single_message_state.ReceiverState other msg)
   return state_id
 
-def single_message_state.compromise (stHandle: Nat): Traceful Nat := do
-  PersistentLocalState.compromise single_message_state stHandle
-
 end Specification
 
 public section SecurityPredicates
@@ -208,7 +205,6 @@ variable [HasExecTrace]
 def prepare_message.reachability: ReachabilityConfig := .make (fun (me, other) => prepare_message me other)
 def send_message.reachability: ReachabilityConfig := .make (fun (me, other, state_handle) => send_message me other state_handle)
 def receive_message.reachability: ReachabilityConfig := .make (fun (me, other, state_handle) => receive_message me other state_handle)
-def single_message_state.compromise.reachability: ReachabilityConfig := .make (fun state_handle => single_message_state.compromise state_handle)
 end
 
 #combine into ReachabilityConfig from
@@ -216,7 +212,6 @@ end
   prepare_message,
   send_message,
   receive_message,
-  single_message_state.compromise,
 
 end Reachability
 
