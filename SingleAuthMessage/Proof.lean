@@ -81,11 +81,6 @@ public section TraceInvariant
 
 variable [HasBytesInvariants]
 
-instance : Communication.HigherLevelInvariants where
-  authenticated tr sender receiver entry := True
-  authenticated_later := sorry
-
-
 instance single_message_state.Invariant : PersistentLocalState.CompromisableLocalStateInv single_message_state where
     invariant me st tr :=
         let msg := st.msg
@@ -126,6 +121,14 @@ where
     Bytes.KnowableBy (Label.pub) ev.msg.payload tr
     ∧ (tr.erase.EventLogged ({ sender:=ev.sender, msg:=ev.msg } : single_message_send_event ))
 
+instance
+  : Communication.HigherLevelInvariants where
+  authenticated tr sender receiver bytes :=
+    ∀ i, Communication.authenticatedMessageSentAt tr.erase sender receiver bytes i
+    → (Option.map (fun s => Trace.EventLogged ({sender:=s, msg:={payload:=bytes}} : single_message_send_event) (tr.erase.prefix i) ) sender).getD True
+  authenticated_later := by sorry
+
+
 end TraceInvariant
 
 -- Future work: the following section is boilerplate that could be meta-programmed
@@ -140,6 +143,7 @@ class HasTraceInvariant extends HasBytesInvariants where
   [traceInv4: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_send_event)]
   [traceInv5: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_receive_event)]
   [traceInv6: TraceInvariant.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
+  [higher_level_preds: Communication.HigherLevelInvariants]
   [attBaseThm: BaseAttackerKnowledgeTheorem]
   [attThm: AttackerKnowledgeTheorem]
 

@@ -143,6 +143,48 @@ def receiveMessageAuthenticated
 
 
 public
+def authenticatedMessageSentAt
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has ExecEntryT]
+  (tr : ExecTrace) (sender receiver : Option Participant) (bytes : Bytes) (i : Nat) :=
+      tr.at? i = some (ExecEntryT.mk bytes sender receiver)
+
+
+public
+def authenticatedMessageSent
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has ExecEntryT]
+  (tr : ExecTrace) (sender receiver : Option Participant) (bytes : Bytes) :=
+      exists i, authenticatedMessageSentAt tr sender receiver bytes i
+
+public
+theorem authenticatedMessageSentAt_later
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has ExecEntryT]
+  (tr1 tr2 : ExecTrace) (sender receiver : Option Participant) (bytes : Bytes) (i : Nat) :
+    tr1 ≤ tr2
+    → authenticatedMessageSentAt tr1 sender receiver bytes i
+    → authenticatedMessageSentAt tr2 sender receiver bytes i
+  := by
+    unfold authenticatedMessageSentAt
+    grind[Trace.at?_le]
+
+public
+theorem authenticatedMessageSent_later
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has ExecEntryT]
+  (tr1 tr2 : ExecTrace) (sender receiver : Option Participant) (bytes : Bytes) :
+    tr1 ≤ tr2
+    → authenticatedMessageSent tr1 sender receiver bytes
+    → authenticatedMessageSent tr2 sender receiver bytes
+  := by
+    unfold authenticatedMessageSent
+    intro le sent1
+    let later := authenticatedMessageSentAt_later tr1 tr2 sender receiver bytes
+    grind
+
+
+public
 def participantCorrupted
   [ExecTraceTypes]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
@@ -261,7 +303,7 @@ theorem sendMessageAuthenticated.proof
   (msg: Bytes)
   : HoareTriple
     (sendMessageAuthenticated sender msg)
-    (fun tr => msg.Publishable tr)
+    (fun tr => msg.Publishable tr ∧ HigherLevelInvariants.authenticated tr (some sender) none msg)
     (fun _ _ => True)
 := by
   apply HoareTriple.mk
@@ -269,8 +311,6 @@ theorem sendMessageAuthenticated.proof
   dsimp only
   step with ⟨ fun _ => ExecEntryT.Authenticated sender msg ⟩ by
     simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Authenticated]
-    -- TODO: use proof for higher level invariants
-    sorry
   trivial
 
 @[instance]
