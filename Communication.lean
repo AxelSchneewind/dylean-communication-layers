@@ -95,19 +95,13 @@ end Compromise
 public
 structure ExecEntryT where
   payload : Bytes
-  sender : Option Participant
-  receiver : Option Participant
+  sender : Participant
+  receiver : Participant
 
 -- constructors
 @[simp, grind]
 public
-def ExecEntryT.Authenticated (sender : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:=some sender, receiver:=none}
-@[simp, grind]
-public
-def ExecEntryT.Confidential (receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:=none, receiver:= some receiver}
-@[simp, grind]
-public
-def ExecEntryT.ConfidentialAuthenticated (sender receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender:= some sender, receiver:= some receiver}
+def ExecEntryT.Authenticated (sender receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender, receiver}
 
 public
 def baseAttackerKnowledge [ExecTraceTypes]: SubBaseAttackerKnowledge ExecEntryT where
@@ -125,9 +119,9 @@ def compromiseParticipant
 public
 def sendMessageAuthenticated
   [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
-  (sender : Participant) (msg: Bytes): Traceful Nat :=
+  (sender receiver : Participant) (msg: Bytes): Traceful Nat :=
   do
-  let entry: ExecEntryT := ExecEntryT.Authenticated sender msg
+  let entry: ExecEntryT := ExecEntryT.Authenticated sender receiver msg
   appendEntry entry
 
 public
@@ -137,7 +131,6 @@ def receiveMessageAuthenticated
   do
   let entry: ExecEntryT ← getEntryStronger handle
   guard (entry.sender = sender)
-  guard (entry.receiver = none)
   return entry.payload
 
 -- could add definitions like MessageSentAt from Network.lean
@@ -147,7 +140,7 @@ public
 def authenticatedMessageSentAt
   [ExecTraceTypes]
   [ExecTraceTypes.Has ExecEntryT]
-  (tr : ExecTrace) (sender receiver : Option Participant) (bytes : Bytes) (i : Nat) :=
+  (tr : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat) :=
       tr.at? i = some (ExecEntryT.mk bytes sender receiver)
 
 
@@ -155,14 +148,14 @@ public
 def authenticatedMessageSent
   [ExecTraceTypes]
   [ExecTraceTypes.Has ExecEntryT]
-  (tr : ExecTrace) (sender receiver : Option Participant) (bytes : Bytes) :=
+  (tr : ExecTrace) (sender receiver : Participant) (bytes : Bytes) :=
       exists i, authenticatedMessageSentAt tr sender receiver bytes i
 
 public
 theorem authenticatedMessageSentAt_later
   [ExecTraceTypes]
   [ExecTraceTypes.Has ExecEntryT]
-  (tr1 tr2 : ExecTrace) (sender receiver : Option Participant) (bytes : Bytes) (i : Nat) :
+  (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat) :
     tr1 ≤ tr2
     → authenticatedMessageSentAt tr1 sender receiver bytes i
     → authenticatedMessageSentAt tr2 sender receiver bytes i
@@ -174,7 +167,7 @@ public
 theorem authenticatedMessageSent_later
   [ExecTraceTypes]
   [ExecTraceTypes.Has ExecEntryT]
-  (tr1 tr2 : ExecTrace) (sender receiver : Option Participant) (bytes : Bytes) :
+  (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) :
     tr1 ≤ tr2
     → authenticatedMessageSent tr1 sender receiver bytes
     → authenticatedMessageSent tr2 sender receiver bytes
@@ -234,7 +227,7 @@ participantCorrupted_later
 
 public
 class HigherLevelInvariants [BytesFunctor] [ExecTraceTypes] [ProofTraceTypes] where
-  authenticated : ProofTrace → Option Participant → Option Participant → Bytes → Prop
+  authenticated : ProofTrace → Participant → Participant → Bytes → Prop
 
   authenticated_later : ∀ tr1 tr2 sender receiver payload,
     tr1 ≤ tr2 → authenticated tr1 sender receiver payload →
@@ -300,17 +293,17 @@ theorem sendMessageAuthenticated.proof
   [ExecTraceTypes.Has ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
   [TraceInvariant.Has ProofEntryT]
-  (sender: Participant)
+  (sender receiver: Participant)
   (msg: Bytes)
   : HoareTriple
-    (sendMessageAuthenticated sender msg)
-    (fun tr => msg.Publishable tr ∧ HigherLevelInvariants.authenticated tr (some sender) none msg)
+    (sendMessageAuthenticated sender receiver msg)
+    (fun tr => msg.Publishable tr ∧ HigherLevelInvariants.authenticated tr sender receiver msg)
     (fun _ _ => True)
 := by
   apply HoareTriple.mk
   unfold sendMessageAuthenticated
   dsimp only
-  step with ⟨ fun _ => ExecEntryT.Authenticated sender msg ⟩ by
+  step with ⟨ fun _ => ExecEntryT.Authenticated sender receiver msg ⟩ by
     simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Authenticated]
   trivial
 
@@ -324,7 +317,7 @@ theorem receiveMessageAuthenticated.proof
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
   [TraceInvariant.Has ProofEntryT]
-  (sender: Participant)
+  (sender : Participant)
   (handle: Nat)
   : HoareTriple
     (receiveMessageAuthenticated sender handle)
@@ -332,8 +325,8 @@ theorem receiveMessageAuthenticated.proof
     (fun msg tr =>
       msg.Publishable tr ∧
       (
-      tr.erase.at? handle = some (ExecEntryT.mk msg (some sender) none)
-      ∨ participantCorrupted tr.erase sender
+        ∃ receiver', tr.erase.at? handle = some (ExecEntryT.mk msg sender receiver')
+        ∨ participantCorrupted tr.erase sender
       )
     )
 := by
@@ -352,14 +345,12 @@ theorem receiveMessageAuthenticated.proof
   step
   rename_i entry_at_handle sender_match
   step
-  step
   rename_i h_receiver h_x
   constructor
   . grind
   . simp[h_x]
-    have : entry = ExecEntryT.mk x (some sender) none := by grind[ExecEntryT]
-    simp[←h_x, ←this]
-    grind
+    have entry_at_handle : tr.erase.at? handle = some entry := by grind
+    exact ⟨ entry.receiver, by left; grind[ExecEntryT] ⟩
 
 end Proof
 
@@ -371,9 +362,9 @@ variable [BaseAttackerKnowledge] [AttackerKnowledge]
 
 public
 abbrev reachability : ReachabilityConfig where
-  Input := Participant × Bytes
-  PreCond i tr := (i.snd).AttackerKnows tr
-  step i   := ⟨ _, sendMessageAuthenticated i.fst i.snd ⟩
+  Input := Participant × Participant × Bytes
+  PreCond i tr := (i.snd.snd).AttackerKnows tr
+  step i   := ⟨ _, sendMessageAuthenticated i.fst i.snd.fst i.snd.snd ⟩
 
 public
 theorem receiveMessageAuthenticated.preservesReachability
@@ -426,7 +417,7 @@ where
   pf input := by
     have ⟨ sender, payload ⟩ := input
     apply HoareTriple.mk
-    have := (sendMessageAuthenticated.proof sender payload).pf
+    have := (sendMessageAuthenticated.proof sender receiver payload).pf
     unfold hoareTriple at *
     grind [Bytes.AttackerKnows_implies_Publishable]
 
