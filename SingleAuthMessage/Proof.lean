@@ -207,9 +207,21 @@ theorem send_message.proof (me other: Participant) (state_id: Nat)
     let st : single_message_state := by assumption
     step with ⟨ ⟩
     step with ⟨ ⟩ by
-      have : single_message_state.Invariant.invariant me st tr := by grind
-      simp [PersistentLocalState.LocalStateInv.invariant] at this
-      grind
+      have st_inv : single_message_state.Invariant.invariant me st tr := by grind
+      simp [PersistentLocalState.LocalStateInv.invariant] at st_inv
+      constructor
+      . grind
+      . simp[Communication.HigherLevelInvariants.authenticated]
+        intro handle
+        have eq : st.sender = me := by grind
+        simp[←eq]
+        simp[st]
+        simp[st] at st_inv
+        have logged : Trace.EventLogged ({sender:=st.sender, msg:={payload:=st.msg.payload}} : single_message_send_event) tr.erase := by grind
+        simp[Trace.EventLogged] at logged
+        simp[Trace.EventLogged]
+
+        sorry
     trivial
 
 @[instance]
