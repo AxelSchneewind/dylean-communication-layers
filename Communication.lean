@@ -143,7 +143,7 @@ def authenticatedMessageSentAt
   (tr : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat) :=
       tr.at? i = some (ExecEntryT.mk bytes sender receiver)
 
-
+@[expose]
 public
 def authenticatedMessageSent
   [ExecTraceTypes]
