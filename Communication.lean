@@ -50,10 +50,11 @@ theorem getEntryStronger.spec
   split
   · grind
   simp only [h_inv, Trace.le_refl, and_true]
-  rename_i trProof execEntry heq
+  let x : ExecEntryT := by assumption
+  obtain heq : (tr_proof'.erase).at? timestamp = some x := by assumption
   cases h: (tr_proof'.at? timestamp: Option ProofEntryT)
   · simp_all [ProofTrace.Entry.at?_eq_none_erase]
-  rename_i proofEntry
+  let proofEntry : ProofEntryT := by assumption
   exists proofEntry
   have := ProofTrace.Entry.at?_eq_some_erase tr_proof' timestamp proofEntry h
   constructor
