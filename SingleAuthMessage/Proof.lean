@@ -37,19 +37,6 @@ public section BytesInvariants
 
 variable [HasProofTrace]
 
-def layerLabel
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has Communication.Compromise.ExecEntryT]
-  (me other: Participant)
-  : Label
-where
-  isCorrupt tr := Communication.participantCorrupted tr me ∨ Communication.participantCorrupted tr other
-  isCorruptLater tr1 tr2 := by
-    intro le corr
-    cases corr
-    . grind [Communication.participantCorrupted_later]
-    . grind [Communication.participantCorrupted_later]
-
 @[simp]
 def authenticatedLabel
   (_me _other: Participant)
