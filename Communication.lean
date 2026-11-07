@@ -297,7 +297,9 @@ theorem sendMessageAuthenticated.proof
   (msg: Bytes)
   : HoareTriple
     (sendMessageAuthenticated sender receiver msg)
-    (fun tr => msg.Publishable tr ∧ HigherLevelInvariants.authenticated tr sender receiver msg)
+    (fun tr => msg.Publishable tr
+      -- has to be ensured by higher level protocol
+      ∧ HigherLevelInvariants.authenticated tr sender receiver msg)
     (fun _ _ => True)
 := by
   apply HoareTriple.mk
@@ -325,7 +327,8 @@ theorem receiveMessageAuthenticated.proof
     (fun msg tr =>
       msg.Publishable tr ∧
       (
-        ∃ receiver', tr.erase.at? handle = some (ExecEntryT.mk msg sender receiver')
+        ∃ receiver',
+        authenticatedMessageSentAt tr.erase sender receiver' msg handle
         ∨ participantCorrupted tr.erase sender
       )
     )
@@ -350,7 +353,7 @@ theorem receiveMessageAuthenticated.proof
   . grind
   . simp[h_x]
     have entry_at_handle : tr.erase.at? handle = some entry := by grind
-    exact ⟨ entry.receiver, by left; grind[ExecEntryT] ⟩
+    exact ⟨ entry.receiver, by left; grind[authenticatedMessageSentAt, ExecEntryT] ⟩
 
 end Proof
 
