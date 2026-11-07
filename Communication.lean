@@ -163,6 +163,23 @@ theorem authenticatedMessageSentAt_later
     unfold authenticatedMessageSentAt
     grind[Trace.at?_le]
 
+grind_pattern [grind_later] authenticatedMessageSentAt_later =>
+tr1 ≤ tr2, authenticatedMessageSentAt_later tr1 tr2 sender receiver bytes i
+
+public
+theorem authenticatedMessageSentAt_before
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has Communication.ExecEntryT]
+  (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat)
+    : tr1 ≤ tr2
+    → Communication.authenticatedMessageSentAt tr2 sender receiver bytes i
+    → i < tr1.length
+    → Communication.authenticatedMessageSentAt tr1 sender receiver bytes i
+    := by
+      unfold authenticatedMessageSentAt
+      grind[Trace.at?_eq_some]
+
+
 public
 theorem authenticatedMessageSent_later
   [ExecTraceTypes]
@@ -177,6 +194,9 @@ theorem authenticatedMessageSent_later
     let later := authenticatedMessageSentAt_later tr1 tr2 sender receiver bytes
     grind
 
+grind_pattern [grind_later] authenticatedMessageSent_later =>
+tr1 ≤ tr2, authenticatedMessageSent_later tr1 tr2 sender receiver bytes
+
 
 public
 def participantCorrupted
@@ -184,6 +204,20 @@ def participantCorrupted
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   (tr : ExecTrace) (participant : Participant) : Prop
     := tr.EventLogged (Compromise.ParticipantCompromiseEvent.mk participant)
+
+omit [BytesFunctor]
+public
+theorem participantCorrupted_later
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has Compromise.ExecEntryT]
+  (tr1 tr2 : ExecTrace) (participant : Participant) :
+    tr1 ≤ tr2 → participantCorrupted tr1 participant → participantCorrupted tr2 participant
+    := by
+      unfold participantCorrupted
+      grind
+
+grind_pattern [grind_later] participantCorrupted_later =>
+tr1 ≤ tr2, participantCorrupted_later tr1 tr2 participant
 
 
 end Execution
@@ -237,6 +271,7 @@ grind_pattern [grind_later] HigherLevelInvariants.authenticated_later =>
 tr1 ≤ tr2, HigherLevelInvariants.authenticated tr1 sender receiver payload
 
 
+-- entry invariant
 public
 instance
   [ExecTraceTypes] [ProofTraceTypes] [BytesInvariants]
@@ -244,11 +279,9 @@ instance
   : SubTraceInvariant ProofEntryT
 where
   invariant tr entry :=
-    entry.payload.Publishable tr
+    -- TODO: use IsWellFormed Bytes.Publishable instead?
+    Bytes.Publishable entry.payload tr
     ∧ user_inv.authenticated tr entry.sender entry.receiver entry.payload
-  -- TODO: user-defined invariant, no events for now
-  -- see DyLibraries/COmmunication/Core/Invariants
-  -- TODO: event for participant-corruption
 
 public
 instance baseAttackerKnowledgeTheorem
@@ -300,14 +333,20 @@ theorem sendMessageAuthenticated.proof
     (fun tr => msg.Publishable tr
       -- has to be ensured by higher level protocol
       ∧ HigherLevelInvariants.authenticated tr sender receiver msg)
-    (fun _ _ => True)
+    (fun i tr => authenticatedMessageSentAt tr.erase sender receiver msg i)
 := by
   apply HoareTriple.mk
   unfold sendMessageAuthenticated
   dsimp only
   step with ⟨ fun _ => ExecEntryT.Authenticated sender receiver msg ⟩ by
     simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Authenticated]
-  trivial
+  unfold authenticatedMessageSentAt
+  let h := Trace.erase_at tr x (by grind)
+  rename_i h_x
+  simp [Trace.at?_eq_some] at h_x
+  simp [Trace.at?_eq_some]
+  obtain ⟨ x_length, proof ⟩ := h_x
+  exact ⟨ x_length, by sorry⟩
 
 @[instance]
 public
@@ -326,10 +365,7 @@ theorem receiveMessageAuthenticated.proof
     (fun _ => True)
     (fun msg tr =>
       msg.Publishable tr ∧
-      (
-        ∃ receiver',
-        authenticatedMessageSentAt tr.erase sender receiver' msg handle
-        ∨ participantCorrupted tr.erase sender
+      ( ∃ receiver', authenticatedMessageSentAt tr.erase sender receiver' msg handle ∨ participantCorrupted tr.erase sender
       )
     )
 := by
