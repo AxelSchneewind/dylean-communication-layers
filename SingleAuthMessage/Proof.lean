@@ -195,9 +195,9 @@ theorem prepare_message.proof (sender receiver : Participant)
       done
 
 @[instance]
-theorem send_message.proof (me other: Participant) (state_id: Nat)
+theorem send_message.proof (sender receiver: Participant) (state_id: Nat)
   : HoareTriple
-    (send_message me other state_id)
+    (send_message sender receiver state_id)
     (fun _ => True)
     (fun _ _ => True)
   := by
@@ -207,7 +207,7 @@ theorem send_message.proof (me other: Participant) (state_id: Nat)
     let st : single_message_state := by assumption
     step with ⟨ ⟩
     step with ⟨ ⟩ by
-      have st_inv : single_message_state.Invariant.invariant me st tr := by grind
+      have st_inv : single_message_state.Invariant.invariant sender st tr := by grind
       simp [PersistentLocalState.LocalStateInv.invariant] at st_inv
       constructor
       . grind
@@ -226,12 +226,13 @@ theorem send_message.proof (me other: Participant) (state_id: Nat)
 
 @[instance]
 theorem receive_message.proof
-  (me other : Participant) (msg_id: Nat)
+  (sender receiver : Participant) (msg_id: Nat)
   : HoareTriple
-    (receive_message me other msg_id)
+    (receive_message sender receiver msg_id)
     (fun _ => True)
     (fun h tr =>
-      ∃ (payload:Bytes), tr.erase.EventLogged (single_message_receive_event.mk other me {payload})
+      ∃ (payload:Bytes), tr.erase.EventLogged (single_message_receive_event.mk sender receiver {payload})
+      ∨ Communication.participantCorrupted tr.erase sender
     ) := by
       apply HoareTriple.mk
       unfold receive_message
@@ -263,8 +264,8 @@ variable [HasTraceInvariant]
 section
 
 -- ReachableImpliesInvariant.mk requires postcondition to be (fun _ _ => True)
-public instance: ReachableImpliesInvariant prepare_message.reachability := .mk (fun (me, other) => prepare_message.proof me other)
-public instance: ReachableImpliesInvariant send_message.reachability := .mk (fun (me, other, s_id) => send_message.proof me other s_id)
+public instance: ReachableImpliesInvariant prepare_message.reachability := .mk (fun (sender, receiver) => prepare_message.proof sender receiver)
+public instance: ReachableImpliesInvariant send_message.reachability := .mk (fun (sender, receiver, s_id) => send_message.proof sender receiver s_id)
 
 variable [ProofTraceTypes] [TraceInvariant]
 variable [BytesInvariants] [BytesInvariantsProofs]
@@ -276,11 +277,11 @@ public
 instance: ReachableImpliesInvariant receive_message.reachability where
   pf input :=
   by
-    have ⟨ me, other, s_id ⟩ := input
-    have spec := (receive_message.proof me other s_id).pf
-    have ⟨ me, other, s_id ⟩ := input
+    have ⟨ sender, receiver, s_id ⟩ := input
+    have spec := (receive_message.proof sender receiver s_id).pf
+    have ⟨ sender, receiver, s_id ⟩ := input
     apply HoareTriple.mk
-    have spec := (receive_message.proof me other s_id).pf
+    have spec := (receive_message.proof sender receiver s_id).pf
     unfold hoareTriple at *
     simp_all [receive_message.reachability]
     intro tr tr_inv

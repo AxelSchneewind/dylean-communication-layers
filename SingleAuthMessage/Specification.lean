@@ -175,17 +175,17 @@ def prepare_message (sender _receiver : Participant) : Traceful Nat := do
   return state_id
 
 public
-def send_message (me _other : Participant) (state_id:Nat) : Traceful Nat := do
-  let st:single_message_state ← PersistentLocalState.getLocalState me state_id
-  guard (st.sender = me)
-  Communication.sendMessageAuthenticated me st.msg.payload
+def send_message (sender receiver : Participant) (state_id:Nat) : Traceful Nat := do
+  let st:single_message_state ← PersistentLocalState.getLocalState sender state_id
+  guard (st.sender = sender)
+  Communication.sendMessageAuthenticated sender receiver st.msg.payload
 
 public
-def receive_message (me other : Participant) (msg_id : Nat) : Traceful Nat := do
-  let msg_bytes ← Communication.receiveMessageAuthenticated other msg_id
+def receive_message (sender receiver : Participant) (msg_id : Nat) : Traceful Nat := do
+  let msg_bytes ← Communication.receiveMessageAuthenticated sender msg_id
   let msg : single_message := {payload:=msg_bytes}
-  ProtocolEvent.logEvent ({sender:=other, receiver:=me, msg} : single_message_receive_event )
-  let state_id ← PersistentLocalState.storeLocalState me (single_message_state.ReceiverState other msg)
+  ProtocolEvent.logEvent ({sender, receiver, msg} : single_message_receive_event )
+  let state_id ← PersistentLocalState.storeLocalState receiver (single_message_state.ReceiverState sender msg)
   return state_id
 
 end Specification
@@ -202,9 +202,9 @@ variable [HasExecTrace]
 
 -- Future work: the following section is boilerplate that could be meta-programmed
 @[expose] public section
-def prepare_message.reachability: ReachabilityConfig := .make (fun (me, other) => prepare_message me other)
-def send_message.reachability: ReachabilityConfig := .make (fun (me, other, state_handle) => send_message me other state_handle)
-def receive_message.reachability: ReachabilityConfig := .make (fun (me, other, state_handle) => receive_message me other state_handle)
+def prepare_message.reachability: ReachabilityConfig := .make (fun (sender, receiver) => prepare_message sender receiver)
+def send_message.reachability: ReachabilityConfig := .make (fun (sender, receiver, state_handle) => send_message sender receiver state_handle)
+def receive_message.reachability: ReachabilityConfig := .make (fun (sender, receiver, state_handle) => receive_message sender receiver state_handle)
 end
 
 #combine into ReachabilityConfig from
