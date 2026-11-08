@@ -103,6 +103,17 @@ where
   invariant tr ev :=
     Bytes.Publishable ev.msg.payload tr
 
+-- for monotonicity (needed?)
+theorem single_message_send_event_inv_imp_Invariant
+  (tr : ProofTrace) (st: single_message_send_event)
+  : ProtocolEvent.EventInv.invariant tr st → st.msg.payload.Invariant tr
+:= by
+  simp [ProtocolEvent.EventInv.invariant]
+  grind
+
+grind_pattern [grind_later] single_message_send_event_inv_imp_Invariant => ProtocolEvent.EventInv.invariant tr st
+
+
 instance single_message_receive_event.Invariant : ProtocolEvent.EventInv (single_message_receive_event)
 where
   invariant tr ev :=
@@ -111,6 +122,16 @@ where
       tr.erase.EventLogged ({ sender:=ev.sender, msg:=ev.msg } : single_message_send_event )
       ∨ Communication.participantCorrupted tr.erase ev.sender
     )
+
+-- for monotonicity (needed?)
+theorem single_message_receive_event_inv_imp_Invariant
+  (tr : ProofTrace) (st: single_message_receive_event)
+  : ProtocolEvent.EventInv.invariant tr st → st.msg.payload.Invariant tr
+:= by
+  simp [ProtocolEvent.EventInv.invariant]
+  grind
+
+grind_pattern [grind_later] single_message_receive_event_inv_imp_Invariant => ProtocolEvent.EventInv.invariant tr st
 
 instance
   : Communication.HigherLevelInvariants where
