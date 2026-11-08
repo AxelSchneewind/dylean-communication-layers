@@ -340,13 +340,16 @@ theorem sendMessageAuthenticated.proof
   dsimp only
   step with ⟨ fun _ => ExecEntryT.Authenticated sender receiver msg ⟩ by
     simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Authenticated]
+  let h_entry := Trace.erase_at tr x (by grind)
   unfold authenticatedMessageSentAt
-  let h := Trace.erase_at tr x (by grind)
-  rename_i h_x
-  simp [Trace.at?_eq_some] at h_x
-  simp [Trace.at?_eq_some]
-  obtain ⟨ x_length, proof ⟩ := h_x
-  exact ⟨ x_length, by sorry⟩
+  let entry : ExecEntryT := (ExecEntryT.Authenticated sender receiver msg)
+  have h_at?_x : tr.at? x = some entry := by assumption
+  -- TODO: make this a reusable theorem? (also needed for receiveMessageAuthenticated)
+  have h_erase_at?_x : tr.erase.at? x = some entry := by
+    simp[Trace.at?_eq_some] at h_at?_x
+    simp[Trace.at?_eq_some, Trace.erase_at, ProofTrace.Entry.erase_eq_imp_exists, ErasableProofEntry.erase]
+    grind
+  grind
 
 @[instance]
 public
