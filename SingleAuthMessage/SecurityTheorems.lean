@@ -18,18 +18,27 @@ theorem sender_authentication
       (msg:single_message)
     : ∀ tr: ExecTrace,
     tr.Reachable reachability →
-    tr.EventLogged/-At-/ (single_message_receive_event.mk sender receiver msg)  /- time-/ →
+    tr.EventLogged/-At-/ ({sender, receiver, msg} : single_message_receive_event)  /- time-/ →
     (
-      tr.EventLogged (single_message_send_event.mk sender msg)
+      tr.EventLogged ({sender, msg} : single_message_send_event)
       ∨ Communication.participantCorrupted tr sender
     ) := by
       -- requires ReachableImpliesInvariant for Communication
       apply Trace.apply_Reachable_implies_Invariant
-      intro tr h_trinv h_ev
+      intro tr h_trinv h_recv_event
       have event_invariant : single_message_receive_event.Invariant.invariant tr (single_message_receive_event.mk sender receiver msg)
       := by
-        have := Trace.EventLogged_imp_EventInv _ _ h_trinv h_ev
-        simp_all [ProtocolEvent.EventInv.invariant]
-        grind
+        -- receive event logged
+        have recv_event_inv := Trace.EventLogged_imp_EventInv _ _ h_trinv h_recv_event
+        simp [ProtocolEvent.EventInv.invariant] at recv_event_inv
+        simp [ProtocolEvent.EventInv.invariant]
+        constructor
+        . -- obtain : ∃i, msg.payload.Publishable (tr.prefix i) := by grind
+          grind
+        . obtain ⟨ i, propl, propr ⟩ := recv_event_inv
+          let logged := Trace.EventLogged_le ({sender, msg} : single_message_send_event) (tr.erase.prefix i) tr.erase (by grind)
+          cases propr
+          . grind
+          . grind[Communication.participantCorrupted_later]
       simp [ProtocolEvent.EventInv.invariant] at event_invariant
       grind
