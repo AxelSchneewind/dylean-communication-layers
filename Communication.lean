@@ -143,7 +143,7 @@ def authenticatedMessageSentAt
   (tr : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat) :=
       tr.at? i = some (ExecEntryT.mk bytes sender receiver)
 
-@[expose]
+@[expose, simp]
 public
 def authenticatedMessageSent
   [ExecTraceTypes]
@@ -246,19 +246,6 @@ instance: ErasableProofEntry ExecEntryT ProofEntryT := ErasableProofEntry.defaul
 public
 instance: ExecEntryAssociatedWithProofEntry ExecEntryT ProofEntryT where
 
--- TODO: where to put this theorem?
--- needed for isCorrupt_later
-omit [BytesFunctor] in
-public theorem
-participantCorrupted_later
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has Compromise.ExecEntryT]
-  (tr1 tr2 : ExecTrace) (participant : Participant) :
-    tr1 ≤ tr2 → participantCorrupted tr1 participant → participantCorrupted tr2 participant
-  := by
-    unfold participantCorrupted
-    grind
-
 public
 class HigherLayerInvariants [BytesFunctor] [ExecTraceTypes] [ProofTraceTypes] where
   authenticated : ProofTrace → Participant → Participant → Bytes → Prop
@@ -282,6 +269,28 @@ where
     -- TODO: use IsWellFormed Bytes.Publishable instead?
     Bytes.Publishable entry.payload tr
     ∧ user_inv.authenticated tr entry.sender entry.receiver entry.payload
+
+public
+theorem authenticatedMessageSentAt_imp_higher_layer_invariants
+  [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant] [BytesInvariants]
+  [HigherLayerInvariants]
+  [ExecTraceTypes.Has ExecEntryT] [ProofTraceTypes.Has ProofEntryT]
+  [TraceInvariant.Has ProofEntryT]
+  (sender receiver: Participant) (bytes: Bytes)
+  (i: Nat)
+  (tr: ProofTrace)
+  : tr.Invariant →
+    authenticatedMessageSentAt tr.erase sender receiver bytes i →
+    HigherLayerInvariants.authenticated (tr.prefix i) sender receiver bytes
+:= by
+  intro h_inv h_ev
+  have := Trace.invariant_at tr i (by grind [authenticatedMessageSentAt]) h_inv
+  suffices SubTraceInvariant.invariant (tr.prefix i) ({sender, receiver, payload:=bytes}:ExecEntryT) by
+    simp_all [SubTraceInvariant.invariant]
+  rewrite [← TraceInvariant.Has.inv_commutes]
+  simp [authenticatedMessageSentAt, Trace.at?_eq_some, Trace.erase_at, ProofTrace.Entry.erase_eq_imp_exists, ErasableProofEntry.erase] at h_ev
+  grind
+
 
 public
 instance baseAttackerKnowledgeTheorem
@@ -331,7 +340,7 @@ theorem sendMessageAuthenticated.proof
   : HoareTriple
     (sendMessageAuthenticated sender receiver msg)
     (fun tr => msg.Publishable tr
-      -- has to be ensured by higher level protocol
+      -- has to be ensured by higher layer
       ∧ HigherLayerInvariants.authenticated tr sender receiver msg)
     (fun i tr => authenticatedMessageSentAt tr.erase sender receiver msg i)
 := by
@@ -368,8 +377,7 @@ theorem receiveMessageAuthenticated.proof
     (fun _ => True)
     (fun msg tr =>
       msg.Publishable tr ∧
-      ( ∃ receiver', authenticatedMessageSentAt tr.erase sender receiver' msg handle ∨ participantCorrupted tr.erase sender
-      )
+      ((∃ receiver', authenticatedMessageSentAt tr.erase sender receiver' msg handle) ∨ participantCorrupted tr.erase sender)
     )
 := by
   apply HoareTriple.mk
@@ -377,7 +385,6 @@ theorem receiveMessageAuthenticated.proof
   step
   have: entry.payload.Publishable tr := by simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]; grind
   rename_i h_entry
-  -- FIXME: how to get this proposition from getEntry call? postcondition not strong enough
   have entry_at_handle : tr.erase.at? handle = some entry := by
     simp[Trace.at?_eq_some, ErasableProofEntry.erase] at h_entry
     simp[Trace.at?_eq_some, Trace.erase_at, ProofTrace.Entry.erase_eq_imp_exists, ErasableProofEntry.erase]
@@ -392,7 +399,7 @@ theorem receiveMessageAuthenticated.proof
   . grind
   . simp[h_x]
     have entry_at_handle : tr.erase.at? handle = some entry := by grind
-    exact ⟨ entry.receiver, by left; grind[authenticatedMessageSentAt, ExecEntryT] ⟩
+    exact Or.inl ⟨ entry.receiver, by grind[authenticatedMessageSentAt, ExecEntryT] ⟩
 
 end Proof
 

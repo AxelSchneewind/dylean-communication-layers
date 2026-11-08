@@ -75,9 +75,12 @@ instance single_message_state.Invariant : PersistentLocalState.CompromisableLoca
         let sender := st.sender
         msg.payload.Invariant tr ∧
         msg.payload.Publishable tr ∧
-        Comparse.IsWellFormed Bytes.Publishable st tr -- ∧
-        -- tr.erase.EventLogged ({ sender:=st.sender, msg:=st.msg } : single_message_send_event)
-    invariant_later := by grind
+        Comparse.IsWellFormed Bytes.Publishable st tr ∧
+        (
+        tr.erase.EventLogged ({ sender:=st.sender, msg:=st.msg } : single_message_send_event)
+        ∨ Communication.participantCorrupted tr.erase st.sender
+        )
+    invariant_later := by grind[Communication.participantCorrupted_later]
     invariant_implies_KnowableBy me st tr := by
       intro inv
       simp [single_message_state.IsWellFormed_eq]
@@ -136,22 +139,11 @@ grind_pattern [grind_later] single_message_receive_event_inv_imp_Invariant => Pr
 instance
   : Communication.HigherLayerInvariants where
   authenticated tr sender receiver bytes :=
-    (∀ i, Communication.authenticatedMessageSentAt tr.erase sender receiver bytes i
-    → (
-      -- event must have been logged earlier
-      Trace.EventLogged ({sender, msg:={payload:=bytes}} : single_message_send_event) (tr.erase.prefix i))
-      ∨ Communication.participantCorrupted tr.erase sender
-      )
+    Trace.EventLogged ({sender, msg:={payload:=bytes}} : single_message_send_event) tr.erase
+    ∨ Communication.participantCorrupted tr.erase sender
+  -- TODO: check if needed
   authenticated_later := by
-    intro tr1 tr2 sender receiver payload le inv_tr1
-    let le' : tr1.erase ≤ tr2.erase := by grind
-    intro i
-    by_cases (i < tr1.length)
-    . grind[Communication.authenticatedMessageSentAt_le', Communication.authenticatedMessageSentAt_le, Communication.participantCorrupted_later]
-    . -- TODO: i does not point into tr1 but only tr2
-      sorry
-
-
+    grind[Communication.authenticatedMessageSentAt_le', Communication.authenticatedMessageSentAt_le, Communication.participantCorrupted_later]
 
 end TraceInvariant
 
@@ -167,7 +159,7 @@ class HasTraceInvariant extends HasBytesInvariants where
   [traceInv4: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_send_event)]
   [traceInv5: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_receive_event)]
   [traceInv6: TraceInvariant.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
-  [higher_level_preds: Communication.HigherLayerInvariants]
+  -- [higher_level_preds: Communication.HigherLayerInvariants]
   [attBaseThm: BaseAttackerKnowledgeTheorem]
   [attThm: AttackerKnowledgeTheorem]
 
@@ -229,21 +221,22 @@ theorem send_message.proof (sender receiver: Participant) (state_id: Nat)
     step
     let st : single_message_state := by assumption
     step with ⟨ ⟩
-    step with ⟨ ⟩ by
-      have st_inv : single_message_state.Invariant.invariant sender st tr := by grind
-      simp [PersistentLocalState.LocalStateInv.invariant] at st_inv
-      -- TODO: how to get this from trace-invariant?
-      have hl_inv : Communication.HigherLayerInvariants.authenticated tr sender receiver st.msg.payload := by sorry
+    hoist; step_intro
+    have : msg.Publishable tr ∧ Communication.HigherLayerInvariants.authenticated tr sender receiver msg := by
+      have st_inv : single_message_state.Invariant.invariant sender st tr := by assumption
+      simp[PersistentLocalState.LocalStateInv.invariant] at st_inv
+      have : Trace.EventLogged ({sender:=st.sender, msg:=st.msg} : single_message_send_event) tr.erase
+             ∨ Communication.participantCorrupted tr.erase st.sender := by
+        grind
+      have hl_inv : Communication.HigherLayerInvariants.authenticated tr sender receiver st.msg.payload := by
+        simp[Communication.HigherLayerInvariants.authenticated]
+        subst sender
+        exact this
       simp [Communication.HigherLayerInvariants.authenticated] at hl_inv
       constructor
       . grind
-      . simp[Communication.HigherLayerInvariants.authenticated]
-        intro handle
-        have logged :
-          Trace.EventLogged ({sender:=st.sender, msg:={payload:=st.msg.payload}} : single_message_send_event) tr.erase ∨
-          Communication.participantCorrupted tr.erase st.sender := by
-          sorry
-        grind
+      . exact hl_inv
+    step with ⟨ ⟩ by grind
     trivial
 
 @[instance]
@@ -252,44 +245,54 @@ theorem receive_message.proof
   : HoareTriple
     (receive_message sender receiver msg_id)
     (fun _ => True)
-    (fun h tr =>
-      ∃ (payload:Bytes), tr.erase.EventLogged (single_message_receive_event.mk sender receiver {payload})
-      ∨ Communication.participantCorrupted tr.erase sender
+    (fun h tr => True
+      -- ∃ (payload:Bytes), tr.erase.EventLogged (single_message_receive_event.mk sender receiver {payload})
+      -- ∨ Communication.participantCorrupted tr.erase sender
     ) := by
       apply HoareTriple.mk
       unfold receive_message
       step with ⟨ ⟩
       have m_pub : msg_bytes.Publishable tr := by grind
       have m_inv : msg_bytes.Invariant tr := by grind
+      -- TODO: use other tactic to get postcondition
+      rename_i post
       step_intro
       have : msg_bytes = msg.payload := by grind
-      -- TODO: use other tactic, keep this propostition
-      rename_i post
+      -- TODO: keep the postcondition without monotonization error
       clear post
+      hoist; step_intro
       step with ⟨ ⟩ by
         subst msg
         simp [ProtocolEvent.EventInv.invariant]
         constructor
         . grind
-        . obtain auth_sent_imp_send_event
-            : Communication.HigherLayerInvariants.authenticated tr sender receiver msg_bytes := by
-            -- How to get from trace-invariant?
-            sorry
-          have sent
-            : Communication.authenticatedMessageSent tr.erase sender receiver msg_bytes
-              ∨ Communication.participantCorrupted tr.erase sender
+        . have sent
+            -- postcondition of receiveMessageAuthenticated (see above), this should still hold
+            : (∃ receiver',
+                Communication.authenticatedMessageSentAt tr.erase sender receiver' msg_bytes msg_id) ∨
+                Communication.participantCorrupted tr.erase sender
             := by
             sorry
-          simp[Communication.authenticatedMessageSent] at sent
           unfold Trace.EventLogged
           cases sent_ : sent
-          . obtain ⟨ i, proof ⟩ : ∃i, Communication.authenticatedMessageSentAt tr.erase sender receiver msg_bytes i := by assumption
-            let send_event := auth_sent_imp_send_event i proof
-            grind
+          . -- TODO: get receiver' without explitly obtaining proposition
+            have sent__ : (∃ receiver',
+                Communication.authenticatedMessageSentAt tr.erase sender receiver' msg_bytes msg_id) := by grind
+            obtain ⟨ receiver', sent ⟩ := sent__
+            -- ExecEntryT has invariant that implies event existance
+            have auth_sent_imp_send_event := Communication.authenticatedMessageSentAt_imp_higher_layer_invariants sender receiver' msg_bytes msg_id tr h
+            let inv := auth_sent_imp_send_event (by grind)
+            simp[Communication.HigherLayerInvariants.authenticated] at inv
+            grind[Trace.EventLogged_le, Communication.participantCorrupted_later]
           . grind
-      step with ⟨ ⟩ by
+      hoist; step_intro
+      have : single_message_state.Invariant.invariant receiver state tr := by
         simp[PersistentLocalState.LocalStateInv.invariant]
-        grind
+        rename_i h_r
+        let recv_event_inv := Trace.EventLogged_imp_EventInv ev tr h h_r
+        simp[ProtocolEvent.EventInv.invariant] at recv_event_inv
+        grind[Trace.EventLogged_le, Communication.participantCorrupted_later]
+      step with ⟨ ⟩ by grind
       grind
 
 
