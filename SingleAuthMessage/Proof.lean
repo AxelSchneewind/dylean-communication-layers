@@ -134,7 +134,7 @@ theorem single_message_receive_event_inv_imp_Invariant
 grind_pattern [grind_later] single_message_receive_event_inv_imp_Invariant => ProtocolEvent.EventInv.invariant tr st
 
 instance
-  : Communication.HigherLevelInvariants where
+  : Communication.HigherLayerInvariants where
   authenticated tr sender receiver bytes :=
     (∀ i, Communication.authenticatedMessageSentAt tr.erase sender receiver bytes i
     → (
@@ -167,7 +167,7 @@ class HasTraceInvariant extends HasBytesInvariants where
   [traceInv4: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_send_event)]
   [traceInv5: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_receive_event)]
   [traceInv6: TraceInvariant.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
-  [higher_level_preds: Communication.HigherLevelInvariants]
+  [higher_level_preds: Communication.HigherLayerInvariants]
   [attBaseThm: BaseAttackerKnowledgeTheorem]
   [attThm: AttackerKnowledgeTheorem]
 
@@ -233,11 +233,11 @@ theorem send_message.proof (sender receiver: Participant) (state_id: Nat)
       have st_inv : single_message_state.Invariant.invariant sender st tr := by grind
       simp [PersistentLocalState.LocalStateInv.invariant] at st_inv
       -- TODO: how to get this from trace-invariant?
-      have hl_inv : Communication.HigherLevelInvariants.authenticated tr sender receiver st.msg.payload := by sorry
-      simp [Communication.HigherLevelInvariants.authenticated] at hl_inv
+      have hl_inv : Communication.HigherLayerInvariants.authenticated tr sender receiver st.msg.payload := by sorry
+      simp [Communication.HigherLayerInvariants.authenticated] at hl_inv
       constructor
       . grind
-      . simp[Communication.HigherLevelInvariants.authenticated]
+      . simp[Communication.HigherLayerInvariants.authenticated]
         intro handle
         have logged :
           Trace.EventLogged ({sender:=st.sender, msg:={payload:=st.msg.payload}} : single_message_send_event) tr.erase ∨
@@ -272,7 +272,7 @@ theorem receive_message.proof
         constructor
         . grind
         . obtain auth_sent_imp_send_event
-            : Communication.HigherLevelInvariants.authenticated tr sender receiver msg_bytes := by
+            : Communication.HigherLayerInvariants.authenticated tr sender receiver msg_bytes := by
             -- How to get from trace-invariant?
             sorry
           have sent
@@ -308,7 +308,7 @@ public instance: ReachableImpliesInvariant send_message.reachability := .mk (fun
 
 variable [ProofTraceTypes] [TraceInvariant]
 variable [BytesInvariants] [BytesInvariantsProofs]
-variable [Communication.HigherLevelInvariants]
+variable [Communication.HigherLayerInvariants]
 variable [ProofTraceTypes.Has Communication.ProofEntryT] [TraceInvariant.Has Communication.ProofEntryT]
 variable [BaseAttackerKnowledgeTheorem] [AttackerKnowledgeTheorem]
 
