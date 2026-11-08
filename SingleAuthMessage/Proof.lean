@@ -126,12 +126,9 @@ instance
     let le' : tr1.erase ≤ tr2.erase := by grind
     intro i
     by_cases (i < tr1.length)
-    . let inv_tr1 := inv_tr1 i
-      intro sent_at2
-      have : Communication.authenticatedMessageSentAt tr1.erase sender receiver payload i := by
-        grind[Communication.authenticatedMessageSentAt_before]
-      grind[Communication.authenticatedMessageSentAt_later, Communication.participantCorrupted_later]
-    . sorry
+    . grind[Communication.authenticatedMessageSentAt_le', Communication.authenticatedMessageSentAt_le, Communication.participantCorrupted_later]
+    . -- TODO: i does not point into tr1 but only tr2
+      sorry
 
 
 

@@ -152,7 +152,7 @@ def authenticatedMessageSent
       exists i, authenticatedMessageSentAt tr sender receiver bytes i
 
 public
-theorem authenticatedMessageSentAt_later
+theorem authenticatedMessageSentAt_le
   [ExecTraceTypes]
   [ExecTraceTypes.Has ExecEntryT]
   (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat) :
@@ -163,11 +163,11 @@ theorem authenticatedMessageSentAt_later
     unfold authenticatedMessageSentAt
     grind[Trace.at?_le]
 
-grind_pattern [grind_later] authenticatedMessageSentAt_later =>
-tr1 ≤ tr2, authenticatedMessageSentAt_later tr1 tr2 sender receiver bytes i
+grind_pattern [grind_later] authenticatedMessageSentAt_le =>
+tr1 ≤ tr2, authenticatedMessageSentAt_le tr1 tr2 sender receiver bytes i
 
 public
-theorem authenticatedMessageSentAt_before
+theorem authenticatedMessageSentAt_le'
   [ExecTraceTypes]
   [ExecTraceTypes.Has Communication.ExecEntryT]
   (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat)
@@ -191,7 +191,7 @@ theorem authenticatedMessageSent_later
   := by
     unfold authenticatedMessageSent
     intro le sent1
-    let later := authenticatedMessageSentAt_later tr1 tr2 sender receiver bytes
+    let later := authenticatedMessageSentAt_le tr1 tr2 sender receiver bytes
     grind
 
 grind_pattern [grind_later] authenticatedMessageSent_later =>
