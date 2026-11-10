@@ -1,6 +1,6 @@
 name = "dylean-communication-layers"
 version = "0.1.0"
-defaultTargets = ["Communication", "SingleAuthMessage"]
+defaultTargets = ["Communication", "SingleAuthMessage", "CustomManipulation"]
 
 [[require]]
 name = "DY"
@@ -12,3 +12,6 @@ name = "Communication"
 
 [[lean_lib]]
 name = "SingleAuthMessage"
+
+[[lean_lib]]
+name = "CustomManipulation"
