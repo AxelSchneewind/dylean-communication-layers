@@ -94,7 +94,7 @@ theorem authenticatedMessageSentAt_le
     grind[Trace.at?_le]
 
 grind_pattern [grind_later] authenticatedMessageSentAt_le =>
-tr1 ≤ tr2, authenticatedMessageSentAt_le tr1 tr2 sender receiver bytes i
+tr1 ≤ tr2, authenticatedMessageSentAt tr1 sender receiver bytes i
 
 public
 theorem authenticatedMessageSentAt_le'
@@ -111,7 +111,7 @@ theorem authenticatedMessageSentAt_le'
 
 
 public
-theorem authenticatedMessageSent_later
+theorem authenticatedMessageSent_le
   [ExecTraceTypes]
   [ExecTraceTypes.Has ExecEntryT]
   (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) :
@@ -124,9 +124,8 @@ theorem authenticatedMessageSent_later
     let later := authenticatedMessageSentAt_le tr1 tr2 sender receiver bytes
     grind
 
-grind_pattern [grind_later] authenticatedMessageSent_later =>
-tr1 ≤ tr2, authenticatedMessageSent_later tr1 tr2 sender receiver bytes
-
+grind_pattern [grind_later] authenticatedMessageSent_le =>
+tr1 ≤ tr2, authenticatedMessageSent tr1 sender receiver bytes
 
 public
 def participantCorrupted
@@ -147,7 +146,7 @@ theorem participantCorrupted_later
       grind
 
 grind_pattern [grind_later] participantCorrupted_later =>
-tr1 ≤ tr2, participantCorrupted_later tr1 tr2 participant
+tr1 ≤ tr2, participantCorrupted tr1 participant
 
 
 end Execution
