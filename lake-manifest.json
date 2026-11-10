@@ -8,7 +8,7 @@
    "rev": "cdf1401d5c245c1ac76778c3b5dbb2a7538abf29",
    "name": "DY",
    "manifestFile": "lake-manifest.json",
-   "inputRev": "main",
+   "inputRev": "v4.36.0-rc1",
    "inherited": false,
    "configFile": "lakefile.toml"}],
  "name": "«dylean-communication-layers»",
