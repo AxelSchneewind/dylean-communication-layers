@@ -314,7 +314,11 @@ theorem receiveMessageAuthenticated.proof
   unfold receiveMessageAuthenticated
   -- getEntry
   step
-  rename_i h_entry -- TODO: use different tactic, or use simp_all below?
+  -- get stronger postcondition of getEntry
+  have h_entry : ∃ proofEntry:ProofEntryT,
+      entry = ErasableProofEntry.erase proofEntry ∧
+      SubTraceInvariant.invariant (tr.prefix handle) proofEntry ∧
+      tr.at? handle = some proofEntry := by grind
   have: entry.payload.Publishable tr := by
     simp [ErasableProofEntry.erase, SubTraceInvariant.invariant] at h_entry
     grind
@@ -323,6 +327,8 @@ theorem receiveMessageAuthenticated.proof
     simp[Trace.at?_eq_some, Trace.erase_at, ProofTrace.Entry.erase_eq_imp_exists, ErasableProofEntry.erase]
     grind
   clear h_entry
+  -- clear postcondition
+  rename_i p; clear p
   -- guard
   step
   -- pure
