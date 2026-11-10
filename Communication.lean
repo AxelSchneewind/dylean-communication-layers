@@ -384,8 +384,10 @@ theorem receiveMessageAuthenticated.proof
   unfold receiveMessageAuthenticated
   -- getEntry
   step
-  have: entry.payload.Publishable tr := by simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]; grind
-  rename_i h_entry
+  rename_i h_entry -- TODO: use different tactic, or use simp_all below?
+  have: entry.payload.Publishable tr := by
+    simp [ErasableProofEntry.erase, SubTraceInvariant.invariant] at h_entry
+    grind
   have entry_at_handle : tr.erase.at? handle = some entry := by
     simp[Trace.at?_eq_some, ErasableProofEntry.erase] at h_entry
     simp[Trace.at?_eq_some, Trace.erase_at, ProofTrace.Entry.erase_eq_imp_exists, ErasableProofEntry.erase]
@@ -393,15 +395,11 @@ theorem receiveMessageAuthenticated.proof
   clear h_entry
   -- guard
   step
-  rename_i entry_at_handle sender_match
   -- pure
   step
-  rename_i h_receiver h_x
   constructor
   . grind
-  . simp[h_x]
-    have entry_at_handle : tr.erase.at? handle = some entry := by grind
-    exact Or.inl ⟨ entry.receiver, by grind[authenticatedMessageSentAt, ExecEntryT] ⟩
+  . exact Or.inl ⟨ entry.receiver, by grind[authenticatedMessageSentAt, ExecEntryT] ⟩
 
 end Proof
 
