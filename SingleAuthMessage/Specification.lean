@@ -115,7 +115,7 @@ grind_pattern [grind_later] single_message.IsWellFormed_eq => IsWellFormed pre x
 public
 instance single_message_state.ps : ParseableSerializeable single_message_state := .make <|
   .triviallyIsomorphic
-  (.prod .unboundedString single_message.ps.mf)
+  (.prod .slowString /-.unboundedString (probably in next release) -/ single_message.ps.mf)
   (fun ⟨ sender, msg ⟩ => {sender, msg} )
   (fun { sender, msg } => ⟨sender, msg⟩ )
   (by grind)

@@ -5,7 +5,7 @@ defaultTargets = ["Communication", "SingleAuthMessage", "CustomManipulation"]
 [[require]]
 name = "DY"
 git = "https://github.com/BobDylean/dylean" 
-rev = "main"
+rev = "v4.36.0-rc1"
 
 [[lean_lib]]
 name = "Communication"
