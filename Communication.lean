@@ -303,8 +303,8 @@ instance baseAttackerKnowledgeTheorem
 where
   pf trBefore entry b := by
     intro invBefore attackerKnows
-    simp [SubTraceInvariant.invariant, /-baseAttackerKnowledge, ErasableProofEntry.erase-/] at invBefore
-    simp [/-SubTraceInvariant.invariant, -/baseAttackerKnowledge, ErasableProofEntry.erase] at attackerKnows
+    simp [SubTraceInvariant.invariant] at invBefore
+    simp [baseAttackerKnowledge, ErasableProofEntry.erase] at attackerKnows
     rw [←attackerKnows]
     grind
 
@@ -347,9 +347,9 @@ theorem sendMessageAuthenticated.proof
   apply HoareTriple.mk
   unfold sendMessageAuthenticated
   dsimp only
+  -- appendEntry
   step with ⟨ fun _ => ExecEntryT.Authenticated sender receiver msg ⟩ by
     simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Authenticated]
-  let h_entry := Trace.erase_at tr x (by grind)
   unfold authenticatedMessageSentAt
   let entry : ExecEntryT := (ExecEntryT.Authenticated sender receiver msg)
   have h_at?_x : tr.at? x = some entry := by assumption
@@ -382,6 +382,7 @@ theorem receiveMessageAuthenticated.proof
 := by
   apply HoareTriple.mk
   unfold receiveMessageAuthenticated
+  -- getEntry
   step
   have: entry.payload.Publishable tr := by simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]; grind
   rename_i h_entry
@@ -389,10 +390,11 @@ theorem receiveMessageAuthenticated.proof
     simp[Trace.at?_eq_some, ErasableProofEntry.erase] at h_entry
     simp[Trace.at?_eq_some, Trace.erase_at, ProofTrace.Entry.erase_eq_imp_exists, ErasableProofEntry.erase]
     grind
-  -- h_entry has to be cleared to avoid monotonization error
   clear h_entry
+  -- guard
   step
   rename_i entry_at_handle sender_match
+  -- pure
   step
   rename_i h_receiver h_x
   constructor
@@ -433,10 +435,10 @@ theorem receiveMessageAuthenticated.preservesReachability
 
   apply Traceful.PreservesReachabilityFrom_bind
   by_cases h:(entry.sender = some sender)
-  . simp [guard,h]
+  . simp [guard]
     simp [Traceful.PreservesReachability, Traceful.PreservesReachabilityFrom /-, Traceful.run_mk-/]
     sorry
-  . simp [guard,h]
+  . simp [guard]
     simp [Traceful.PreservesReachability, Traceful.PreservesReachabilityFrom/-, Traceful.run_mk-/]
     sorry
   · grind

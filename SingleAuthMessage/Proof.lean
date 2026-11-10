@@ -189,25 +189,21 @@ theorem prepare_message.proof (sender receiver : Participant)
   := by
       apply HoareTriple.mk
       unfold prepare_message
-      step with ⟨ fun _ => Label.pub, Usage.nothing ⟩ -- have to pass ghost arguments to genRand here
+      -- Random.genRand
+      step with ⟨ fun _ => Label.pub, Usage.nothing ⟩
+      -- ProtocolEvent.logEvent
       step_intro
-      hoist
-      step_intro
+      hoist; step_intro
       step by
-        have : payload = ev.msg.payload := by grind
-        simp only [ProtocolEvent.EventInv.invariant]
+        simp [ProtocolEvent.EventInv.invariant]
         grind [single_message_send_event]
+      -- PersistentLocalState.storeLocalState
       step by
         simp only [PersistentLocalState.LocalStateInv.invariant]
         apply And.intro; simp; grind
         apply And.intro; simp; grind
-        -- apply And.intro; simp; grind
-        subst ev
-        have : Trace.EventLogged ({ sender, msg } : single_message_send_event) tr.erase := by assumption
-        simp
         grind
       trivial
-      done
 
 @[instance]
 theorem send_message.proof (sender receiver: Participant) (state_id: Nat)
@@ -218,9 +214,11 @@ theorem send_message.proof (sender receiver: Participant) (state_id: Nat)
   := by
     apply HoareTriple.mk
     unfold send_message
+    -- PersistentLocalState.getLocalState
     step
-    let st : single_message_state := by assumption
+    -- guard
     step with ⟨ ⟩
+    -- Communication.sendMessageAuthenticated
     hoist; step_intro
     have : msg.Publishable tr ∧ Communication.HigherLayerInvariants.authenticated tr sender receiver msg := by
       have st_inv : single_message_state.Invariant.invariant sender st tr := by assumption
@@ -245,46 +243,39 @@ theorem receive_message.proof
   : HoareTriple
     (receive_message sender receiver msg_id)
     (fun _ => True)
-    (fun h tr => True
+    (fun _h _tr => True
       -- ∃ (payload:Bytes), tr.erase.EventLogged (single_message_receive_event.mk sender receiver {payload})
       -- ∨ Communication.participantCorrupted tr.erase sender
     ) := by
       apply HoareTriple.mk
       unfold receive_message
+      -- Communication.receiveMessageAuthenticated
       step with ⟨ ⟩
-      have m_pub : msg_bytes.Publishable tr := by grind
-      have m_inv : msg_bytes.Invariant tr := by grind
       -- TODO: use other tactic to get postcondition
-      rename_i post
+      rename_i receiveMessageAuthenticatedPost
       step_intro
-      have : msg_bytes = msg.payload := by grind
-      -- TODO: keep the postcondition without monotonization error
-      clear post
+      -- TODO: what does this do exactly?
+      mark_non_monotone receiveMessageAuthenticatedPost
+      -- ProtocolEvent.logEvent
       hoist; step_intro
       step with ⟨ ⟩ by
         subst msg
         simp [ProtocolEvent.EventInv.invariant]
         constructor
         . grind
-        . have sent
-            -- postcondition of receiveMessageAuthenticated (see above), this should still hold
-            : (∃ receiver',
-                Communication.authenticatedMessageSentAt tr.erase sender receiver' msg_bytes msg_id) ∨
-                Communication.participantCorrupted tr.erase sender
-            := by
-            sorry
-          unfold Trace.EventLogged
-          cases sent_ : sent
-          . -- TODO: get receiver' without explitly obtaining proposition
+        . unfold Trace.EventLogged
+          cases receiveMessageAuthenticatedPost
+          . -- TODO: get receiver' without explitly getting proposition
             have sent__ : (∃ receiver',
                 Communication.authenticatedMessageSentAt tr.erase sender receiver' msg_bytes msg_id) := by grind
             obtain ⟨ receiver', sent ⟩ := sent__
-            -- ExecEntryT has invariant that implies event existance
+            -- ExecEntryT invariant implies event existence
             have auth_sent_imp_send_event := Communication.authenticatedMessageSentAt_imp_higher_layer_invariants sender receiver' msg_bytes msg_id tr h
             let inv := auth_sent_imp_send_event (by grind)
             simp[Communication.HigherLayerInvariants.authenticated] at inv
             grind[Trace.EventLogged_le, Communication.participantCorrupted_later]
           . grind
+      -- PersistentLocalState.storeLocalState
       hoist; step_intro
       have : single_message_state.Invariant.invariant receiver state tr := by
         simp[PersistentLocalState.LocalStateInv.invariant]
