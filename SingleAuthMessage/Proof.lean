@@ -255,8 +255,6 @@ theorem receive_message.proof
       -- TODO: use other tactic to get postcondition
       rename_i receiveMessageAuthenticatedPost
       step_intro
-      -- TODO: what does this do exactly?
-      mark_non_monotone receiveMessageAuthenticatedPost
       -- ProtocolEvent.logEvent
       hoist; step_intro
       step with ⟨ ⟩ by
