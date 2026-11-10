@@ -299,32 +299,7 @@ section
 -- ReachableImpliesInvariant.mk requires postcondition to be (fun _ _ => True)
 public instance: ReachableImpliesInvariant prepare_message.reachability := .mk (fun (sender, receiver) => prepare_message.proof sender receiver)
 public instance: ReachableImpliesInvariant send_message.reachability := .mk (fun (sender, receiver, s_id) => send_message.proof sender receiver s_id)
-
-variable [ProofTraceTypes] [TraceInvariant]
-variable [BytesInvariants] [BytesInvariantsProofs]
-variable [Communication.HigherLayerInvariants]
-variable [ProofTraceTypes.Has Communication.ProofEntryT] [TraceInvariant.Has Communication.ProofEntryT]
-variable [BaseAttackerKnowledgeTheorem] [AttackerKnowledgeTheorem]
-
-public
-instance: ReachableImpliesInvariant receive_message.reachability where
-  pf input :=
-  by
-    have ⟨ sender, receiver, s_id ⟩ := input
-    have spec := (receive_message.proof sender receiver s_id).pf
-    have ⟨ sender, receiver, s_id ⟩ := input
-    apply HoareTriple.mk
-    have spec := (receive_message.proof sender receiver s_id).pf
-    unfold hoareTriple at *
-    simp_all [receive_message.reachability]
-    intro tr tr_inv
-    -- intro tr pre tr_inv
-    -- have spec := spec tr tr_inv
-    sorry
-    -- simp only [ProtocolEvent.EventInv, single_message_event.Invariant]
-    -- grind [single_message_event.Invariant, Bytes.AttackerKnows_implies_Publishable]
-
-
+public instance: ReachableImpliesInvariant receive_message.reachability := .mk (fun (sender, receiver, s_id) => receive_message.proof sender receiver s_id)
 
 end
 
