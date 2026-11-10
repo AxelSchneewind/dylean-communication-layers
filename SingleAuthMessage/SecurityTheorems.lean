@@ -39,6 +39,6 @@ theorem sender_authentication
           let logged := Trace.EventLogged_le ({sender, msg} : single_message_send_event) (tr.erase.prefix i) tr.erase (by grind)
           cases propr
           . grind
-          . grind[Communication.participantCorrupted_later]
+          . grind[Communication.participantCorrupted_le]
       simp [ProtocolEvent.EventInv.invariant] at event_invariant
       grind

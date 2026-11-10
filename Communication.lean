@@ -136,7 +136,7 @@ def participantCorrupted
 
 omit [BytesFunctor]
 public
-theorem participantCorrupted_later
+theorem participantCorrupted_le
   [ExecTraceTypes]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   (tr1 tr2 : ExecTrace) (participant : Participant) :
@@ -145,7 +145,7 @@ theorem participantCorrupted_later
       unfold participantCorrupted
       grind
 
-grind_pattern [grind_later] participantCorrupted_later =>
+grind_pattern [grind_later] participantCorrupted_le =>
 tr1 ≤ tr2, participantCorrupted tr1 participant
 
 
