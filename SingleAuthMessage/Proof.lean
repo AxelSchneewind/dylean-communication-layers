@@ -201,8 +201,7 @@ theorem prepare_message.proof (sender receiver : Participant)
       -- PersistentLocalState.storeLocalState
       step by
         simp only [PersistentLocalState.LocalStateInv.invariant]
-        apply And.intro; simp; grind
-        apply And.intro; simp; grind
+        repeat apply And.intro; grind
         grind
       trivial
 
