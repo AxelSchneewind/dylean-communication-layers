@@ -70,9 +70,7 @@ def receiveMessageAuthenticated
   guard (entry.sender = sender)
   return entry.payload
 
--- could add definitions like MessageSentAt from Network.lean
-
-
+-- definitions like MessageSentAt from Network.lean
 public
 def authenticatedMessageSentAt
   [ExecTraceTypes]
@@ -106,16 +104,18 @@ tr1 ≤ tr2, authenticatedMessageSentAt tr1 sender receiver bytes i
 public
 theorem authenticatedMessageSentAt_le'
   [ExecTraceTypes]
-  [ExecTraceTypes.Has Communication.ExecEntryT]
+  [ExecTraceTypes.Has ExecEntryT]
   (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat)
     : tr1 ≤ tr2
-    → Communication.authenticatedMessageSentAt tr2 sender receiver bytes i
+    → authenticatedMessageSentAt tr2 sender receiver bytes i
     → i < tr1.length
-    → Communication.authenticatedMessageSentAt tr1 sender receiver bytes i
+    → authenticatedMessageSentAt tr1 sender receiver bytes i
     := by
       unfold authenticatedMessageSentAt
       grind[Trace.at?_eq_some]
 
+grind_pattern [grind_later] authenticatedMessageSentAt_le' =>
+tr1 ≤ tr2, i < tr1.length, authenticatedMessageSentAt tr1 sender receiver bytes i
 
 public
 theorem authenticatedMessageSent_le
@@ -197,7 +197,8 @@ tr1 ≤ tr2, HigherLayerInvariants.authenticated tr1 sender receiver payload
 -- entry invariant
 public
 instance
-  [ExecTraceTypes] [ExecTraceTypes.Has Compromise.ExecEntryT] [ProofTraceTypes] [BytesInvariants]
+  [ExecTraceTypes] [ExecTraceTypes.Has Compromise.ExecEntryT]
+  [ProofTraceTypes] [BytesInvariants]
   [HigherLayerInvariants]
   : SubTraceInvariant ProofEntryT
 where
@@ -391,69 +392,92 @@ end Proof
 
 section Reachability
 
-variable [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT] [ExecTraceTypes.Has Compromise.ExecEntryT]
-variable [BaseAttackerKnowledge] [AttackerKnowledge]
+variable
+  [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
+  [BytesInvariants] [BytesInvariantsProofs]
+  [HigherLayerInvariants]
+  [ExecTraceTypes.Has ExecEntryT] [ ExecTraceTypes.Has Compromise.ExecEntryT]
+  [ProofTraceTypes.Has ProofEntryT] [ProofTraceTypes.Has Compromise.ProofEntryT]
+  [TraceInvariant.Has ProofEntryT]  [TraceInvariant.Has Compromise.ProofEntryT]
+  [BaseAttackerKnowledge] [AttackerKnowledge]
 
-public
-abbrev reachability : ReachabilityConfig where
+-- -- Future work: the following section is boilerplate that could be meta-programmed
+@[expose] public section
+-- using abbrev instead of def allows these to be unfolded by simp
+
+abbrev sendMessageAuthenticatedAttacker.reachability: ReachabilityConfig where
   Input := Participant × Participant × Bytes
-  PreCond i tr := (i.snd.snd).AttackerKnows tr
-  step i   := ⟨ _, sendMessageAuthenticated i.fst i.snd.fst i.snd.snd ⟩
+  PreCond input tr := participantCorrupted tr input.fst ∧ input.snd.snd.AttackerKnows tr
+  step input := ⟨ _, sendMessageAuthenticatedAttacker input.fst input.snd.fst input.snd.snd ⟩
 
+abbrev receiveMessageAuthenticated.reachability: ReachabilityConfig where
+  Input := Participant × Nat
+  PreCond _input _tr := True
+  step input := ⟨ _, receiveMessageAuthenticated input.fst input.snd ⟩
+
+abbrev compromiseParticipant.reachability: ReachabilityConfig := .make (fun (participant) => compromiseParticipant participant)
+
+
+-- analogous to LongTermKeys
 public
-theorem receiveMessageAuthenticated.preservesReachability
-  [BaseAttackerKnowledge.Has baseAttackerKnowledge]
-  (config: ReachabilityConfig)
-  (sender : Participant)
-  (msg_handle: Nat)
-  : (receiveMessageAuthenticated sender msg_handle).PreservesReachability config (fun _ => True) (fun msg tr => msg.AttackerKnows tr)
-:= by
-  dsimp only [receiveMessageAuthenticated, Traceful.PreservesReachability]
-  intro tr h_reach h_pre
-  apply Traceful.PreservesReachabilityFrom_bind
-  · apply getEntryStronger.preservesReachability
-  · grind
-  · grind
-  intro entry tr h_post h_reach h_le
+def reachability.internal (i:Fin 3) : ReachabilityConfig := match i with
+      | 0 => compromiseParticipant.reachability
+      | 1 => receiveMessageAuthenticated.reachability
+      | 2 => sendMessageAuthenticatedAttacker.reachability
+end
 
-  apply Traceful.PreservesReachabilityFrom_bind
-  by_cases h:(entry.sender = some sender)
-  . simp [guard]
-    simp [Traceful.PreservesReachability, Traceful.PreservesReachabilityFrom /-, Traceful.run_mk-/]
-    sorry
-  . simp [guard]
-    simp [Traceful.PreservesReachability, Traceful.PreservesReachabilityFrom/-, Traceful.run_mk-/]
-    sorry
-  · grind
-  apply Traceful.PreservesReachabilityFrom_pure
-  · sorry
-
-  apply Bytes.AttackerKnows.prove_from_base
-  apply Trace.prove_BaseAttackerKnows baseAttackerKnowledge tr entry entry.payload msg_handle
-  · grind
-  simp [baseAttackerKnowledge]
-  exact reachability
-
-  sorry
-  sorry
-
-
-
-variable [ProofTraceTypes] [TraceInvariant]
-variable [BytesInvariants] [BytesInvariantsProofs]
-variable [HigherLayerInvariants]
-variable [ProofTraceTypes.Has ProofEntryT] [TraceInvariant.Has ProofEntryT]
-variable [BaseAttackerKnowledgeTheorem] [AttackerKnowledgeTheorem]
-
+@[expose]
 public
-instance: ReachableImpliesInvariant reachability
-where
+def reachability : ReachabilityConfig :=
+  .combine reachability.internal
+
+section
+
+variable
+  [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
+  [BytesInvariants] [BytesInvariantsProofs]
+  [HigherLayerInvariants]
+  [ExecTraceTypes.Has ExecEntryT]
+  [ExecTraceTypes.Has Compromise.ExecEntryT]
+  [ProofTraceTypes.Has ProofEntryT]
+  [ProofTraceTypes.Has Compromise.ProofEntryT]
+  [TraceInvariant.Has ProofEntryT]
+  [TraceInvariant.Has Compromise.ProofEntryT]
+  [BaseAttackerKnowledge]
+  [BaseAttackerKnowledgeTheorem]
+  [AttackerKnowledgeTheorem]
+
+public instance: ReachableImpliesInvariant compromiseParticipant.reachability := .mk (fun (participant) => compromiseParticipant.proof participant)
+
+public instance: ReachableImpliesInvariant receiveMessageAuthenticated.reachability where
   pf input := by
-    have ⟨ sender, payload ⟩ := input
+    have ⟨ sender, handle ⟩ := input
     apply HoareTriple.mk
-    have := (sendMessageAuthenticated.proof sender receiver payload).pf
+    let pf := (receiveMessageAuthenticated.proof sender handle).pf
     unfold hoareTriple at *
-    grind [Bytes.AttackerKnows_implies_Publishable]
+    simp[wp]
+    simp[wp] at pf
+    grind[Bytes.AttackerKnows_implies_Publishable]
+
+public instance: ReachableImpliesInvariant sendMessageAuthenticatedAttacker.reachability where
+  pf input := by
+    have ⟨ sender, receiver, payload ⟩ := input
+    apply HoareTriple.mk
+    let pf := (sendMessageAuthenticatedAttacker.proof sender receiver payload).pf
+    unfold hoareTriple at *
+    simp[wp]
+    simp[wp] at pf
+    grind[Bytes.AttackerKnows_implies_Publishable]
+
+public instance: ∀ i, ReachableImpliesInvariant (reachability.internal i)
+  | 0 => inferInstanceAs <| ReachableImpliesInvariant compromiseParticipant.reachability
+  | 1 => inferInstanceAs <| ReachableImpliesInvariant receiveMessageAuthenticated.reachability
+  | 2 => inferInstanceAs <| ReachableImpliesInvariant sendMessageAuthenticatedAttacker.reachability
+
+public instance: ReachableImpliesInvariant (reachability) := inferInstanceAs (ReachableImpliesInvariant (.combine reachability.internal))
+
+end
+
 
 end Reachability
 
