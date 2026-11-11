@@ -45,6 +45,13 @@ def compromiseParticipant
   (participant : Participant): Traceful Unit := do
   ProtocolEvent.logEvent (Compromise.ParticipantCompromiseEvent.mk participant)
 
+public
+def sendMessageAuthenticatedAttacker
+  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
+  (sender receiver : Participant) (msg: Bytes): Traceful Nat :=
+  do
+  let entry: ExecEntryT := ExecEntryT.Authenticated sender receiver msg
+  appendEntry entry
 
 public
 def sendMessageAuthenticated
@@ -257,6 +264,43 @@ theorem compromiseParticipant.proof
   unfold compromiseParticipant
   step by simp[ProtocolEvent.EventInv.invariant]
   trivial
+
+
+@[instance]
+public
+theorem sendMessageAuthenticatedAttacker.proof
+  [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
+  [BytesInvariants] [BytesInvariantsProofs]
+  [HigherLayerInvariants]
+  [ExecTraceTypes.Has ExecEntryT]
+  [ExecTraceTypes.Has Compromise.ExecEntryT]
+  [ProofTraceTypes.Has ProofEntryT]
+  [ProofTraceTypes.Has Compromise.ProofEntryT]
+  [TraceInvariant.Has ProofEntryT]
+  [TraceInvariant.Has Compromise.ProofEntryT]
+  (sender receiver: Participant)
+  (msg: Bytes)
+  : HoareTriple
+    (sendMessageAuthenticatedAttacker sender receiver msg)
+    (fun tr => msg.Publishable tr ∧ participantCorrupted tr.erase sender)
+    -- could probably drop the postcondition
+    (fun i tr => authenticatedMessageSentAt tr.erase sender receiver msg i)
+:= by
+  apply HoareTriple.mk
+  unfold sendMessageAuthenticatedAttacker
+  dsimp only
+  -- appendEntry
+  step with ⟨ fun _ => ExecEntryT.Authenticated sender receiver msg ⟩ by
+    simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Authenticated]
+  unfold authenticatedMessageSentAt
+  let entry : ExecEntryT := (ExecEntryT.Authenticated sender receiver msg)
+  have h_at?_x : tr.at? x = some entry := by assumption
+  -- TODO: make this a reusable theorem? (also needed for receiveMessageAuthenticated)
+  have h_erase_at?_x : tr.erase.at? x = some entry := by
+    simp[Trace.at?_eq_some] at h_at?_x
+    simp[Trace.at?_eq_some, Trace.erase_at, ProofTrace.Entry.erase_eq_imp_exists, ErasableProofEntry.erase]
+    grind
+  grind
 
 @[instance]
 public
