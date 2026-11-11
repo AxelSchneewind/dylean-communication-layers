@@ -25,7 +25,7 @@ def getEntryStronger
 
 @[instance]
 public
-theorem getEntryStronger.spec
+theorem getEntryStronger.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   {ExecEntryT ProofEntryT: Type}
   [ExecEntryAssociatedWithProofEntry ExecEntryT ProofEntryT]
