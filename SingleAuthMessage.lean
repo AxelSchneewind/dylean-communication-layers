@@ -1,3 +1,4 @@
 module
 
 import SingleAuthMessage.SecurityTheorems
+import SingleAuthMessage.SanityChecks
