@@ -25,6 +25,15 @@ def honestProtocolRun: Traceful Unit := do
 
 #guard (honestProtocolRun.run Trace.nil).fst = some ()
 
+section Print
+def example_trace := (honestProtocolRun.run Trace.nil).snd.val
+
+-- variable [Repr ExecTrace.Entry] [Repr ExecEntryT]
+
+#eval example_trace
+
+end Print
+
 theorem honestProtocolRun_preservesReachability
   : honestProtocolRun.PreservesReachability reachability (fun _ => True) (fun _ _ => True)
 := by
@@ -65,8 +74,11 @@ theorem honestProtocolRun_properties:
     . apply Traceful.PreservesReachability_to_Reachable honestProtocolRun_preservesReachability
       grind
     simp only[DY.Trace.EventLoggedAt_eq_getEventAt]
-
-    sorry
+    let witness := match (Trace.getEventAt single_message_send_event 1 tr) with
+       | some event => event.msg
+       | none => single_message.mk Comparse.BytesLike.empty
+    refine ⟨ 1, 4, witness, ?_ ⟩
+    native_decide
 
 #print axioms honestProtocolRun_properties
 
