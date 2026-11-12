@@ -134,12 +134,36 @@ theorem authenticatedMessageSent_le
 grind_pattern [grind_later] authenticatedMessageSent_le =>
 tr1 ≤ tr2, authenticatedMessageSent tr1 sender receiver bytes
 
+
+public
+def participantCorruptedAt
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has Compromise.ExecEntryT]
+  (tr : ExecTrace) (participant : Participant) (i : Nat) : Prop
+    := tr.EventLoggedAt (Compromise.ParticipantCompromiseEvent.mk participant) i
+
+@[expose]
 public
 def participantCorrupted
   [ExecTraceTypes]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   (tr : ExecTrace) (participant : Participant) : Prop
-    := tr.EventLogged (Compromise.ParticipantCompromiseEvent.mk participant)
+    := ∃i, participantCorruptedAt tr participant i
+
+omit [BytesFunctor]
+public
+theorem participantCorruptedAt_le
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has Compromise.ExecEntryT]
+  (tr1 tr2 : ExecTrace) (participant : Participant) (i : Nat) :
+    tr1 ≤ tr2 → participantCorruptedAt tr1 participant i → participantCorruptedAt tr2 participant i
+    := by
+      unfold participantCorruptedAt
+      grind
+
+grind_pattern [grind_later] participantCorruptedAt_le =>
+tr1 ≤ tr2, participantCorruptedAt tr1 participant i
+
 
 omit [BytesFunctor]
 public
@@ -150,6 +174,7 @@ theorem participantCorrupted_le
     tr1 ≤ tr2 → participantCorrupted tr1 participant → participantCorrupted tr2 participant
     := by
       unfold participantCorrupted
+      unfold participantCorruptedAt
       grind
 
 grind_pattern [grind_later] participantCorrupted_le =>
