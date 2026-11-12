@@ -3,6 +3,7 @@ module
 import DY.Meta
 import DY.Meta.Utils
 public import SingleAuthMessage.Specification
+public import SingleAuthMessage.SecurityTheorems
 import SingleAuthMessage.Instance
 public meta import SingleAuthMessage.Instance
 
@@ -16,6 +17,8 @@ namespace DY.Example.SingleAuthMessage
 abbrev alice := "Alice"
 abbrev bob := "Bob"
 
+section honest
+
 def honestProtocolRun: Traceful Unit := do
   -- alice prepares msg for bob
   let i ← prepare_message alice bob
@@ -25,14 +28,8 @@ def honestProtocolRun: Traceful Unit := do
 
 #guard (honestProtocolRun.run Trace.nil).fst = some ()
 
-section Print
-def example_trace := (honestProtocolRun.run Trace.nil).snd.val
-
--- variable [Repr ExecTrace.Entry] [Repr ExecEntryT]
-
-#eval example_trace
-
-end Print
+def honestProtocolRun_trace := (honestProtocolRun.run Trace.nil).snd.val
+#eval honestProtocolRun_trace
 
 theorem honestProtocolRun_preservesReachability
   : honestProtocolRun.PreservesReachability reachability (fun _ => True) (fun _ _ => True)
@@ -81,6 +78,80 @@ theorem honestProtocolRun_properties:
     native_decide
 
 #print axioms honestProtocolRun_properties
+
+end honest
+
+
+
+
+section compromised
+
+def msg [Literal.CanMkLiteral Bytes] : Bytes := Literal.literalToBytes (ByteArray.mk (Array.mk [1,2]))
+
+def compromisedProtocolRun : Traceful Unit := do
+  -- attacker prepares msg for bob
+  Communication.compromiseParticipant alice
+  let j ← Communication.sendMessageAuthenticatedAttacker alice bob msg
+  let _ ← receive_message alice bob j
+  return ()
+
+#guard (compromisedProtocolRun.run Trace.nil).fst = some ()
+
+def example_trace := (compromisedProtocolRun.run Trace.nil).snd.val
+#eval example_trace
+
+theorem compromisedProtocolRun_preservesReachability
+  : compromisedProtocolRun.PreservesReachability reachability (fun _ => True) (fun _ _ => True)
+:= by
+  unfold compromisedProtocolRun
+
+  intro tr reach _
+  apply Traceful.PreservesReachabilityFrom_bind
+  . -- TODO: is there a way to use Communication.compromiseParticipant.reachability directly?
+    apply Traceful.PreservesReachability_base Communication.reachability _ (⟨ 0, alice ⟩ )
+  . assumption
+  . sorry
+
+  intro i tr post tr_inv le
+  apply Traceful.PreservesReachabilityFrom_bind
+  . apply Traceful.PreservesReachability_base Communication.reachability _ (⟨ 2, (alice, bob, msg)  ⟩ )
+  . assumption
+  . sorry
+
+  intro j tr post tr_inv le
+  apply Traceful.PreservesReachabilityFrom_bind
+  . apply Traceful.PreservesReachability_base receive_message.reachability _ (alice, bob, j)
+  . assumption
+  . assumption
+
+  intro j tr post tr_inv le
+  apply Traceful.PreservesReachabilityFrom_pure
+  grind
+  grind
+
+theorem compromisedProtocolRun_properties:
+  let tr := (compromisedProtocolRun.run Trace.nil).snd.val
+  tr.Reachable reachability ∧
+  ∃ (tr1 tr2 : Nat),
+  tr1 ≤ tr2
+  ∧ Communication.participantCorruptedAt tr alice tr1
+  ∧ tr.EventLoggedAt (single_message_receive_event.mk alice bob {payload:=msg}) tr2 := by
+    intro tr
+    refine ⟨ ?_, ?_ ⟩
+    . apply Traceful.PreservesReachability_to_Reachable compromisedProtocolRun_preservesReachability
+      grind
+    simp only[Communication.participantCorruptedAt, DY.Trace.EventLoggedAt_eq_getEventAt]
+    refine ⟨ 0, 2, ?_ ⟩
+    -- have := sender_authentication alice bob {payload:=msg} 2 tr (by sorry) (by sorry)
+    -- simp only [Communication.participantCorrupted, Communication.participantCorruptedAt, DY.Trace.EventLoggedAt_eq_getEventAt] at this
+    simp
+    constructor
+    . sorry
+    . native_decide
+
+#print axioms compromisedProtocolRun_properties
+
+end compromised
 
 
 end DY.Example.SingleAuthMessage
