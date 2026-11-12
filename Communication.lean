@@ -135,6 +135,7 @@ grind_pattern [grind_later] authenticatedMessageSent_le =>
 tr1 ≤ tr2, authenticatedMessageSent tr1 sender receiver bytes
 
 
+@[expose]
 public
 def participantCorruptedAt
   [ExecTraceTypes]
