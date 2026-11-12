@@ -17,6 +17,7 @@ namespace Compromise
 public
 structure ParticipantCompromiseEvent where
   participant: Participant
+  deriving DecidableEq
 
 #combine into ExecEntryT, baseAttackerKnowledge from ProtocolEvent ParticipantCompromiseEvent
 

@@ -142,12 +142,7 @@ theorem compromisedProtocolRun_properties:
       grind
     simp only[Communication.participantCorruptedAt, DY.Trace.EventLoggedAt_eq_getEventAt]
     refine ⟨ 0, 2, ?_ ⟩
-    -- have := sender_authentication alice bob {payload:=msg} 2 tr (by sorry) (by sorry)
-    -- simp only [Communication.participantCorrupted, Communication.participantCorruptedAt, DY.Trace.EventLoggedAt_eq_getEventAt] at this
-    simp
-    constructor
-    . sorry
-    . native_decide
+    native_decide
 
 #print axioms compromisedProtocolRun_properties
 
