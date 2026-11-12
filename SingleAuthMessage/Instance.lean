@@ -32,14 +32,17 @@ instance: HasExecTrace where
 public
 instance : Repr ExecTrace.Entry where
   reprPrec entry _ := match entry with
-    | ⟨ 0, s ⟩ => "network: " ++ (repr s.msg.length)
+    | ⟨ 0, s ⟩ => "network: " ++ (repr s.msg.length) ++ "B"
     | ⟨ 1, e ⟩ => "communication: " ++ e.sender ++ " → " ++ e.receiver ++ ", " ++ (repr e.payload.length) ++ "B"
     | ⟨ 2, c ⟩ => "compromise: " ++ match c with
-        | ⟨ 0, ev ⟩ => ev.ev.participant
+        | ⟨ 0, {ev} ⟩ => ev.participant
     | ⟨ 3, r ⟩ => "random: " ++ (repr r.length) ++ "B"
-    | ⟨ 4, se ⟩ => "send event: " ++ se.ev.sender ++ ": " ++ (repr se.ev.msg.payload.length)
-    | ⟨ 5, re ⟩ => "recv event: " ++ re.ev.sender ++ ": " ++ (repr re.ev.msg.payload.length)
-    | ⟨ 6, st ⟩ => "state "
+    | ⟨ 4, {ev} ⟩ => "send event: " ++ ev.sender ++ ": " ++ (repr ev.msg.payload.length)
+    | ⟨ 5, {ev} ⟩ => "recv event: " ++ ev.sender ++ ": " ++ (repr ev.msg.payload.length)
+    | ⟨ 6, st ⟩ => "state " ++
+        match st with
+        | ⟨ 0, ⟨ 0, {st} ⟩  ⟩ => st.participant ++ ": " ++ (repr st.state.msg.payload.length) ++ "B from " ++ st.state.sender
+        | ⟨ 1, ⟨ 0, ⟨ 0, {ev:={state}} ⟩  ⟩  ⟩ => "corrupted " ++ state.participant ++ ": " ++ (repr state.state.msg.payload.length) ++ "B from " ++ state.state.sender
 
 def reprHelper [Repr ExecTrace.Entry] : ExecTrace → Std.Format
   | .nil => ""
