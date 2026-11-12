@@ -26,19 +26,11 @@ theorem sender_authentication
       -- requires ReachableImpliesInvariant for Communication
       apply Trace.apply_Reachable_implies_Invariant
       intro tr h_trinv h_recv_event
-      have event_invariant : single_message_receive_event.Invariant.invariant tr (single_message_receive_event.mk sender receiver msg)
-      := by
+      have event_invariant : single_message_receive_event.Invariant.invariant tr (single_message_receive_event.mk sender receiver msg) := by
         -- receive event logged
         have recv_event_inv := Trace.EventLogged_imp_EventInv _ _ h_trinv h_recv_event
         simp [ProtocolEvent.EventInv.invariant] at recv_event_inv
         simp [ProtocolEvent.EventInv.invariant]
-        constructor
-        . -- obtain : ∃i, msg.payload.Publishable (tr.prefix i) := by grind
-          grind
-        . obtain ⟨ i, propl, propr ⟩ := recv_event_inv
-          let logged := Trace.EventLogged_le ({sender, msg} : single_message_send_event) (tr.erase.prefix i) tr.erase (by grind)
-          cases propr
-          . grind
-          . grind[Communication.participantCorrupted_le]
+        grind[Communication.participantCorrupted_le]
       simp [ProtocolEvent.EventInv.invariant] at event_invariant
       grind
