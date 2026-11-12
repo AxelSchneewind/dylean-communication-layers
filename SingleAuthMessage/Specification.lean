@@ -65,12 +65,6 @@ structure single_message_state where
   msg : single_message
 deriving DecidableEq
 
-@[simp, grind]
-public def single_message_state.SenderState (sender: Participant) (msg:single_message) : single_message_state := { sender, msg }
-@[simp, grind]
-public def single_message_state.ReceiverState (sender: Participant) (msg:single_message) : single_message_state := { sender, msg }
-
-
 public
 structure single_message_send_event where
   sender : Participant
@@ -171,7 +165,7 @@ def prepare_message (sender _receiver : Participant) : Traceful Nat := do
   let payload ← Random.genRand 32
   let msg : single_message := { payload }
   ProtocolEvent.logEvent ({ sender, msg } : single_message_send_event)
-  let state_id ← PersistentLocalState.storeLocalState sender (single_message_state.SenderState sender msg)
+  let state_id ← PersistentLocalState.storeLocalState sender ({sender, msg} : single_message_state)
   return state_id
 
 public
@@ -185,7 +179,7 @@ def receive_message (sender receiver : Participant) (msg_id : Nat) : Traceful Na
   let msg_bytes ← Communication.receiveMessageAuthenticated sender msg_id
   let msg : single_message := {payload:=msg_bytes}
   ProtocolEvent.logEvent ({sender, receiver, msg} : single_message_receive_event )
-  let state_id ← PersistentLocalState.storeLocalState receiver (single_message_state.ReceiverState sender msg)
+  let state_id ← PersistentLocalState.storeLocalState receiver ({sender, msg} : single_message_state)
   return state_id
 
 end Specification
