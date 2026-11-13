@@ -10,7 +10,7 @@ public meta import SingleAuthMessage.Instance
 -- for formatting
 public import Init.Data.Format.Basic
 
-import Communication
+public import Communication
 
 namespace DY.Example.SingleAuthMessage
 
@@ -105,18 +105,26 @@ theorem compromisedProtocolRun_preservesReachability
 := by
   unfold compromisedProtocolRun
 
-  intro tr reach _
+  intro tr reach pre
   apply Traceful.PreservesReachabilityFrom_bind
   . -- TODO: is there a way to use Communication.compromiseParticipant.reachability directly?
-    apply Traceful.PreservesReachability_base Communication.reachability _ (⟨ 0, alice ⟩ )
+    apply Traceful.PreservesReachability_base Communication.compromiseParticipant.reachability _ (alice)
   . assumption
-  . sorry
+  . -- precondition proof
+    unfold Communication.compromiseParticipant.reachability
+    grind
+
 
   intro i tr post tr_inv le
+  -- these are required for precondition, how to get from previous step?
+  have : Communication.participantCorrupted tr alice := by sorry
+  have : msg.AttackerKnows tr := by sorry
   apply Traceful.PreservesReachabilityFrom_bind
-  . apply Traceful.PreservesReachability_base Communication.reachability _ (⟨ 2, (alice, bob, msg)  ⟩ )
+  . apply Traceful.PreservesReachability_base Communication.sendMessageAuthenticatedAttacker.reachability _ (alice, bob, msg)
   . assumption
-  . sorry
+  . -- precondition proof
+    unfold Communication.sendMessageAuthenticatedAttacker.reachability
+    grind
 
   intro j tr post tr_inv le
   apply Traceful.PreservesReachabilityFrom_bind
@@ -126,9 +134,10 @@ theorem compromisedProtocolRun_preservesReachability
 
   intro j tr post tr_inv le
   apply Traceful.PreservesReachabilityFrom_pure
-  grind
-  grind
+  . grind
+  . grind
 
+-- TODO: use security theorem
 theorem compromisedProtocolRun_properties:
   let tr := (compromisedProtocolRun.run Trace.nil).snd.val
   tr.Reachable reachability ∧

@@ -428,7 +428,6 @@ variable
   [TraceInvariant.Has ProofEntryT]  [TraceInvariant.Has Compromise.ProofEntryT]
   [BaseAttackerKnowledge] [AttackerKnowledge]
 
--- -- Future work: the following section is boilerplate that could be meta-programmed
 @[expose] public section
 -- using abbrev instead of def allows these to be unfolded by simp
 
@@ -458,6 +457,12 @@ public
 def reachability : ReachabilityConfig :=
   .combine reachability.internal
 
+-- required in order to use the individual configs directly
+public instance: ReachabilityConfig.HasStep compromiseParticipant.reachability reachability := inferInstanceAs <| ReachabilityConfig.HasStep (reachability.internal 0) (.combine (reachability.internal))
+public instance: ReachabilityConfig.HasStep receiveMessageAuthenticated.reachability reachability := inferInstanceAs <| ReachabilityConfig.HasStep (reachability.internal 1) (.combine (reachability.internal))
+public instance: ReachabilityConfig.HasStep sendMessageAuthenticatedAttacker.reachability reachability := inferInstanceAs <| ReachabilityConfig.HasStep (reachability.internal 2) (.combine (reachability.internal))
+
+
 section
 
 variable
@@ -482,6 +487,9 @@ public instance: ReachableImpliesInvariant receiveMessageAuthenticated.reachabil
     apply HoareTriple.mk
     let pf := (receiveMessageAuthenticated.proof sender handle).pf
     unfold hoareTriple at *
+    unfold receiveMessageAuthenticated.reachability
+    simp
+    simp at pf
     simp[wp]
     simp[wp] at pf
     grind[Bytes.AttackerKnows_implies_Publishable]
@@ -492,6 +500,9 @@ public instance: ReachableImpliesInvariant sendMessageAuthenticatedAttacker.reac
     apply HoareTriple.mk
     let pf := (sendMessageAuthenticatedAttacker.proof sender receiver payload).pf
     unfold hoareTriple at *
+    unfold sendMessageAuthenticatedAttacker.reachability
+    simp
+    simp at pf
     simp[wp]
     simp[wp] at pf
     grind[Bytes.AttackerKnows_implies_Publishable]
