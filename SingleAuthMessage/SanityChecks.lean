@@ -91,7 +91,7 @@ def msg [Literal.CanMkLiteral Bytes] : Bytes := Literal.literalToBytes (ByteArra
 def compromisedProtocolRun : Traceful Unit := do
   -- attacker prepares msg for bob
   Communication.compromiseParticipant alice
-  let j ← Communication.sendMessageAuthenticatedAttacker alice bob msg
+  let j ← Communication.sendAuthenticatedAttacker alice bob msg
   let _ ← receive_message alice bob j
   return ()
 
@@ -120,10 +120,10 @@ theorem compromisedProtocolRun_preservesReachability
   have : Communication.participantCorrupted tr alice := by sorry
   have : msg.AttackerKnows tr := by sorry
   apply Traceful.PreservesReachabilityFrom_bind
-  . apply Traceful.PreservesReachability_base Communication.sendMessageAuthenticatedAttacker.reachability _ (alice, bob, msg)
+  . apply Traceful.PreservesReachability_base Communication.sendAuthenticatedAttacker.reachability _ (alice, bob, msg)
   . assumption
   . -- precondition proof
-    unfold Communication.sendMessageAuthenticatedAttacker.reachability
+    unfold Communication.sendAuthenticatedAttacker.reachability
     grind
 
   intro j tr post tr_inv le

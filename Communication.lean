@@ -47,7 +47,7 @@ def compromiseParticipant
   ProtocolEvent.logEvent (Compromise.ParticipantCompromiseEvent.mk participant)
 
 public
-def sendMessageAuthenticatedAttacker
+def sendAuthenticatedAttacker
   [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
   (sender receiver : Participant) (msg: Bytes): Traceful Nat :=
   do
@@ -55,7 +55,7 @@ def sendMessageAuthenticatedAttacker
   appendEntry entry
 
 public
-def sendMessageAuthenticated
+def sendAuthenticated
   [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
   (sender receiver : Participant) (msg: Bytes): Traceful Nat :=
   do
@@ -63,7 +63,7 @@ def sendMessageAuthenticated
   appendEntry entry
 
 public
-def receiveMessageAuthenticated
+def receiveAuthenticated
   [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
   (sender : Participant) (handle: Nat): Traceful Bytes :=
   do
@@ -296,7 +296,7 @@ theorem compromiseParticipant.proof
 
 @[instance]
 public
-theorem sendMessageAuthenticatedAttacker.proof
+theorem sendAuthenticatedAttacker.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
   [HigherLayerInvariants]
@@ -309,13 +309,13 @@ theorem sendMessageAuthenticatedAttacker.proof
   (sender receiver: Participant)
   (msg: Bytes)
   : HoareTriple
-    (sendMessageAuthenticatedAttacker sender receiver msg)
+    (sendAuthenticatedAttacker sender receiver msg)
     (fun tr => msg.Publishable tr ∧ participantCorrupted tr.erase sender)
     -- could probably drop the postcondition
     (fun i tr => authenticatedMessageSentAt tr.erase sender receiver msg i)
 := by
   apply HoareTriple.mk
-  unfold sendMessageAuthenticatedAttacker
+  unfold sendAuthenticatedAttacker
   dsimp only
   -- appendEntry
   step with ⟨ fun _ => ExecEntryT.Authenticated sender receiver msg ⟩ by
@@ -323,7 +323,7 @@ theorem sendMessageAuthenticatedAttacker.proof
   unfold authenticatedMessageSentAt
   let entry : ExecEntryT := (ExecEntryT.Authenticated sender receiver msg)
   have h_at?_x : tr.at? x = some entry := by assumption
-  -- TODO: make this a reusable theorem? (also needed for receiveMessageAuthenticated)
+  -- TODO: make this a reusable theorem? (also needed for receiveAuthenticated)
   have h_erase_at?_x : tr.erase.at? x = some entry := by
     simp[Trace.at?_eq_some] at h_at?_x
     simp[Trace.at?_eq_some, Trace.erase_at, ProofTrace.Entry.erase_eq_imp_exists, ErasableProofEntry.erase]
@@ -332,7 +332,7 @@ theorem sendMessageAuthenticatedAttacker.proof
 
 @[instance]
 public
-theorem sendMessageAuthenticated.proof
+theorem sendAuthenticated.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
   [HigherLayerInvariants]
@@ -345,14 +345,14 @@ theorem sendMessageAuthenticated.proof
   (sender receiver: Participant)
   (msg: Bytes)
   : HoareTriple
-    (sendMessageAuthenticated sender receiver msg)
+    (sendAuthenticated sender receiver msg)
     (fun tr => msg.Publishable tr
       -- has to be ensured by higher layer
       ∧ HigherLayerInvariants.authenticated tr sender receiver msg)
     (fun i tr => authenticatedMessageSentAt tr.erase sender receiver msg i)
 := by
   apply HoareTriple.mk
-  unfold sendMessageAuthenticated
+  unfold sendAuthenticated
   dsimp only
   -- appendEntry
   step with ⟨ fun _ => ExecEntryT.Authenticated sender receiver msg ⟩ by
@@ -360,7 +360,7 @@ theorem sendMessageAuthenticated.proof
   unfold authenticatedMessageSentAt
   let entry : ExecEntryT := (ExecEntryT.Authenticated sender receiver msg)
   have h_at?_x : tr.at? x = some entry := by assumption
-  -- TODO: make this a reusable theorem? (also needed for receiveMessageAuthenticated)
+  -- TODO: make this a reusable theorem? (also needed for receiveAuthenticated)
   have h_erase_at?_x : tr.erase.at? x = some entry := by
     simp[Trace.at?_eq_some] at h_at?_x
     simp[Trace.at?_eq_some, Trace.erase_at, ProofTrace.Entry.erase_eq_imp_exists, ErasableProofEntry.erase]
@@ -369,7 +369,7 @@ theorem sendMessageAuthenticated.proof
 
 @[instance]
 public
-theorem receiveMessageAuthenticated.proof
+theorem receiveAuthenticated.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
   [HigherLayerInvariants]
@@ -380,7 +380,7 @@ theorem receiveMessageAuthenticated.proof
   (sender : Participant)
   (handle: Nat)
   : HoareTriple
-    (receiveMessageAuthenticated sender handle)
+    (receiveAuthenticated sender handle)
     (fun _ => True)
     (fun msg tr =>
       msg.Publishable tr ∧
@@ -388,7 +388,7 @@ theorem receiveMessageAuthenticated.proof
     )
 := by
   apply HoareTriple.mk
-  unfold receiveMessageAuthenticated
+  unfold receiveAuthenticated
   -- getEntry
   step
   -- get stronger postcondition of getEntry
@@ -431,15 +431,15 @@ variable
 @[expose] public section
 -- using abbrev instead of def allows these to be unfolded by simp
 
-abbrev sendMessageAuthenticatedAttacker.reachability: ReachabilityConfig where
+abbrev sendAuthenticatedAttacker.reachability: ReachabilityConfig where
   Input := Participant × Participant × Bytes
   PreCond input tr := participantCorrupted tr input.fst ∧ input.snd.snd.AttackerKnows tr
-  step input := ⟨ _, sendMessageAuthenticatedAttacker input.fst input.snd.fst input.snd.snd ⟩
+  step input := ⟨ _, sendAuthenticatedAttacker input.fst input.snd.fst input.snd.snd ⟩
 
-abbrev receiveMessageAuthenticated.reachability: ReachabilityConfig where
+abbrev receiveAuthenticated.reachability: ReachabilityConfig where
   Input := Participant × Nat
   PreCond _input _tr := True
-  step input := ⟨ _, receiveMessageAuthenticated input.fst input.snd ⟩
+  step input := ⟨ _, receiveAuthenticated input.fst input.snd ⟩
 
 abbrev compromiseParticipant.reachability: ReachabilityConfig := .make (fun (participant) => compromiseParticipant participant)
 
@@ -448,8 +448,8 @@ abbrev compromiseParticipant.reachability: ReachabilityConfig := .make (fun (par
 public
 def reachability.internal (i:Fin 3) : ReachabilityConfig := match i with
       | 0 => compromiseParticipant.reachability
-      | 1 => receiveMessageAuthenticated.reachability
-      | 2 => sendMessageAuthenticatedAttacker.reachability
+      | 1 => receiveAuthenticated.reachability
+      | 2 => sendAuthenticatedAttacker.reachability
 end
 
 @[expose]
@@ -459,8 +459,8 @@ def reachability : ReachabilityConfig :=
 
 -- required in order to use the individual configs directly
 public instance: ReachabilityConfig.HasStep compromiseParticipant.reachability reachability := inferInstanceAs <| ReachabilityConfig.HasStep (reachability.internal 0) (.combine (reachability.internal))
-public instance: ReachabilityConfig.HasStep receiveMessageAuthenticated.reachability reachability := inferInstanceAs <| ReachabilityConfig.HasStep (reachability.internal 1) (.combine (reachability.internal))
-public instance: ReachabilityConfig.HasStep sendMessageAuthenticatedAttacker.reachability reachability := inferInstanceAs <| ReachabilityConfig.HasStep (reachability.internal 2) (.combine (reachability.internal))
+public instance: ReachabilityConfig.HasStep receiveAuthenticated.reachability reachability := inferInstanceAs <| ReachabilityConfig.HasStep (reachability.internal 1) (.combine (reachability.internal))
+public instance: ReachabilityConfig.HasStep sendAuthenticatedAttacker.reachability reachability := inferInstanceAs <| ReachabilityConfig.HasStep (reachability.internal 2) (.combine (reachability.internal))
 
 
 section
@@ -481,26 +481,26 @@ variable
 
 public instance: ReachableImpliesInvariant compromiseParticipant.reachability := .mk (fun (participant) => compromiseParticipant.proof participant)
 
-public instance: ReachableImpliesInvariant receiveMessageAuthenticated.reachability where
+public instance: ReachableImpliesInvariant receiveAuthenticated.reachability where
   pf input := by
     have ⟨ sender, handle ⟩ := input
     apply HoareTriple.mk
-    let pf := (receiveMessageAuthenticated.proof sender handle).pf
+    let pf := (receiveAuthenticated.proof sender handle).pf
     unfold hoareTriple at *
-    unfold receiveMessageAuthenticated.reachability
+    unfold receiveAuthenticated.reachability
     simp
     simp at pf
     simp[wp]
     simp[wp] at pf
     grind[Bytes.AttackerKnows_implies_Publishable]
 
-public instance: ReachableImpliesInvariant sendMessageAuthenticatedAttacker.reachability where
+public instance: ReachableImpliesInvariant sendAuthenticatedAttacker.reachability where
   pf input := by
     have ⟨ sender, receiver, payload ⟩ := input
     apply HoareTriple.mk
-    let pf := (sendMessageAuthenticatedAttacker.proof sender receiver payload).pf
+    let pf := (sendAuthenticatedAttacker.proof sender receiver payload).pf
     unfold hoareTriple at *
-    unfold sendMessageAuthenticatedAttacker.reachability
+    unfold sendAuthenticatedAttacker.reachability
     simp
     simp at pf
     simp[wp]
@@ -509,8 +509,8 @@ public instance: ReachableImpliesInvariant sendMessageAuthenticatedAttacker.reac
 
 public instance: ∀ i, ReachableImpliesInvariant (reachability.internal i)
   | 0 => inferInstanceAs <| ReachableImpliesInvariant compromiseParticipant.reachability
-  | 1 => inferInstanceAs <| ReachableImpliesInvariant receiveMessageAuthenticated.reachability
-  | 2 => inferInstanceAs <| ReachableImpliesInvariant sendMessageAuthenticatedAttacker.reachability
+  | 1 => inferInstanceAs <| ReachableImpliesInvariant receiveAuthenticated.reachability
+  | 2 => inferInstanceAs <| ReachableImpliesInvariant sendAuthenticatedAttacker.reachability
 
 public instance: ReachableImpliesInvariant (reachability) := inferInstanceAs (ReachableImpliesInvariant (.combine reachability.internal))
 

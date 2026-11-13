@@ -218,7 +218,7 @@ theorem send_message.proof (sender receiver: Participant) (state_id: Nat)
     step
     -- guard
     step with ⟨ ⟩
-    -- Communication.sendMessageAuthenticated
+    -- Communication.sendAuthenticated
     hoist; step_intro
     have : msg.Publishable tr ∧ Communication.HigherLayerInvariants.authenticated tr sender receiver msg := by
       have st_inv : single_message_state.Invariant.invariant sender st tr := by assumption
@@ -249,10 +249,10 @@ theorem receive_message.proof
     ) := by
       apply HoareTriple.mk
       unfold receive_message
-      -- Communication.receiveMessageAuthenticated
+      -- Communication.receiveAuthenticated
       step with ⟨ ⟩
       -- TODO: use other tactic to get postcondition
-      rename_i receiveMessageAuthenticatedPost
+      rename_i receiveAuthenticatedPost
       step_intro
       -- ProtocolEvent.logEvent
       hoist; step_intro
@@ -262,7 +262,7 @@ theorem receive_message.proof
         constructor
         . grind
         . unfold Trace.EventLogged
-          cases receiveMessageAuthenticatedPost
+          cases receiveAuthenticatedPost
           . -- TODO: get receiver' without explitly getting proposition
             have sent__ : (∃ receiver',
                 Communication.authenticatedMessageSentAt tr.erase sender receiver' msg_bytes msg_id) := by grind
