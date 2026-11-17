@@ -67,7 +67,7 @@ def receiveAuthenticated
   [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
   (sender : Participant) (handle: Nat): Traceful Bytes :=
   do
-  let entry: ExecEntryT ← getEntryStronger handle
+  let entry: ExecEntryT ← getEntry handle
   guard (entry.sender = sender)
   return entry.payload
 
