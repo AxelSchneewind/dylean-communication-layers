@@ -287,7 +287,7 @@ theorem compromiseParticipant.proof
   [TraceInvariant.Has ProofEntryT]
   [TraceInvariant.Has Compromise.ProofEntryT]
   (participant: Participant)
-  : HoareTriple (compromiseParticipant participant) (fun _ => True) (fun _ _ => True)
+  : HoareTriple (compromiseParticipant participant) (fun _ => True) (fun _ tr => participantCorrupted tr.erase participant )
 := by
   unfold compromiseParticipant
   step by simp[ProtocolEvent.EventInv.invariant]
@@ -463,6 +463,18 @@ public instance: ReachabilityConfig.HasStep receiveAuthenticated.reachability re
 public instance: ReachabilityConfig.HasStep sendAuthenticatedAttacker.reachability reachability := inferInstanceAs <| ReachabilityConfig.HasStep (reachability.internal 2) (.combine (reachability.internal))
 
 
+-- compromisedProtocolRun_preservesReachability needs postcondition of compromiseParticipant
+public
+theorem compromiseParticipant.preservesReachability
+  (config : ReachabilityConfig)
+  (alice : Participant)
+  : (compromiseParticipant alice).PreservesReachability config (fun _x => True) (fun _out tr => participantCorrupted tr alice) := by
+  dsimp only [compromiseParticipant, Traceful.PreservesReachability]
+  intro tr h_reach h_pre
+  simp[Communication.participantCorrupted, Communication.participantCorruptedAt]
+  apply ProtocolEvent.logEvent.preservesReachability
+  . assumption
+  . trivial
 section
 
 variable
@@ -479,7 +491,19 @@ variable
   [BaseAttackerKnowledgeTheorem]
   [AttackerKnowledgeTheorem]
 
-public instance: ReachableImpliesInvariant compromiseParticipant.reachability := .mk (fun (participant) => compromiseParticipant.proof participant)
+public instance: ReachableImpliesInvariant compromiseParticipant.reachability where
+  pf input := by
+    let participant := input
+    apply HoareTriple.mk
+    let pf := (compromiseParticipant.proof participant).pf
+    unfold hoareTriple at *
+    unfold compromiseParticipant.reachability
+    simp
+    simp at pf
+    intro tr h_inv
+    let ⟨ trp, pf ⟩ := pf tr h_inv
+    refine ⟨ trp, ?_ ⟩
+    grind
 
 public instance: ReachableImpliesInvariant receiveAuthenticated.reachability where
   pf input := by
