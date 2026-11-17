@@ -243,10 +243,8 @@ theorem receive_message.proof
   : HoareTriple
     (receive_message sender receiver msg_id)
     (fun _ => True)
-    (fun _h _tr => True
-      -- ∃ (payload:Bytes), tr.erase.EventLogged (single_message_receive_event.mk sender receiver {payload})
-      -- ∨ Communication.participantCorrupted tr.erase sender
-    ) := by
+    (fun _h _tr => True)
+  := by
       apply HoareTriple.mk
       unfold receive_message
       -- Communication.receiveAuthenticated
