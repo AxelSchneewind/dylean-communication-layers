@@ -19,6 +19,10 @@ structure ParticipantCompromiseEvent where
   participant: Participant
   deriving DecidableEq
 
+public
+instance : Repr ParticipantCompromiseEvent where
+  reprPrec e _ := "compromised: " ++ e.participant
+
 #combine into ExecEntryT, baseAttackerKnowledge from ProtocolEvent ParticipantCompromiseEvent
 
 end Compromise
@@ -28,6 +32,11 @@ structure ExecEntryT where
   payload : Bytes
   sender : Participant
   receiver : Participant
+
+public
+instance [Repr Bytes] : Repr ExecEntryT where
+  reprPrec e _ := "communication: " ++ (repr e.payload) ++ " (" ++ e.sender ++ " → " ++ e.receiver ++ ")"
+
 
 -- constructors
 @[simp, grind]
@@ -419,6 +428,32 @@ end Proof
 
 section Reachability
 
+
+section
+
+variable
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has Compromise.ExecEntryT]
+
+omit [BytesFunctor]
+
+-- compromisedProtocolRun_preservesReachability needs postcondition of compromiseParticipant
+public
+theorem compromiseParticipant.preservesReachability
+  (config : ReachabilityConfig)
+  (alice : Participant)
+  : (compromiseParticipant alice).PreservesReachability config (fun _x => True) (fun _out tr => participantCorrupted tr alice) := by
+  dsimp only [compromiseParticipant, Traceful.PreservesReachability]
+  intro tr h_reach h_pre
+  simp[Communication.participantCorrupted, Communication.participantCorruptedAt]
+  apply ProtocolEvent.logEvent.preservesReachability
+  . assumption
+  . trivial
+section
+
+end
+
+
 variable
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
@@ -462,20 +497,6 @@ public instance: ReachabilityConfig.HasStep compromiseParticipant.reachability r
 public instance: ReachabilityConfig.HasStep receiveAuthenticated.reachability reachability := inferInstanceAs <| ReachabilityConfig.HasStep (reachability.internal 1) (.combine (reachability.internal))
 public instance: ReachabilityConfig.HasStep sendAuthenticatedAttacker.reachability reachability := inferInstanceAs <| ReachabilityConfig.HasStep (reachability.internal 2) (.combine (reachability.internal))
 
-
--- compromisedProtocolRun_preservesReachability needs postcondition of compromiseParticipant
-public
-theorem compromiseParticipant.preservesReachability
-  (config : ReachabilityConfig)
-  (alice : Participant)
-  : (compromiseParticipant alice).PreservesReachability config (fun _x => True) (fun _out tr => participantCorrupted tr alice) := by
-  dsimp only [compromiseParticipant, Traceful.PreservesReachability]
-  intro tr h_reach h_pre
-  simp[Communication.participantCorrupted, Communication.participantCorruptedAt]
-  apply ProtocolEvent.logEvent.preservesReachability
-  . assumption
-  . trivial
-section
 
 variable
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
