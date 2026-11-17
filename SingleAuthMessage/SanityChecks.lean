@@ -86,6 +86,7 @@ end honest
 
 section compromised
 
+-- TODO: how to add to initial attacker knowledge?
 def msg [Literal.CanMkLiteral Bytes] : Bytes := Literal.literalToBytes (ByteArray.mk (Array.mk [1,2]))
 
 def compromisedProtocolRun : Traceful Unit := do
@@ -105,19 +106,17 @@ theorem compromisedProtocolRun_preservesReachability
 := by
   unfold compromisedProtocolRun
 
+  -- TODO: get postcondition from compromiseParticipant. (maybe PreservesReachability with postcondition)
   intro tr reach pre
   apply Traceful.PreservesReachabilityFrom_bind
-  . -- TODO: is there a way to use Communication.compromiseParticipant.reachability directly?
-    apply Traceful.PreservesReachability_base Communication.compromiseParticipant.reachability _ (alice)
+  . apply Communication.compromiseParticipant.preservesReachability
   . assumption
-  . -- precondition proof
-    unfold Communication.compromiseParticipant.reachability
-    grind
-
+  . assumption
 
   intro i tr post tr_inv le
-  -- these are required for precondition, how to get from previous step?
-  have : Communication.participantCorrupted tr alice := by sorry
+
+  have : Communication.participantCorrupted tr alice := by assumption
+  -- this is required for precondition, how to get from previous step?
   have : msg.AttackerKnows tr := by sorry
   apply Traceful.PreservesReachabilityFrom_bind
   . apply Traceful.PreservesReachability_base Communication.sendAuthenticatedAttacker.reachability _ (alice, bob, msg)
@@ -137,7 +136,6 @@ theorem compromisedProtocolRun_preservesReachability
   . grind
   . grind
 
--- TODO: use security theorem
 theorem compromisedProtocolRun_properties:
   let tr := (compromisedProtocolRun.run Trace.nil).snd.val
   tr.Reachable reachability ∧
