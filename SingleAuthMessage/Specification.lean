@@ -184,12 +184,6 @@ def receive_message (sender receiver : Participant) (msg_id : Nat) : Traceful Na
 
 end Specification
 
-public section SecurityPredicates
-
-variable [HasExecTrace]
-
-end SecurityPredicates
-
 public section Reachability
 
 variable [HasExecTrace]
