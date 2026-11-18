@@ -23,9 +23,11 @@ theorem appendEntry.preservesReachability
   (entry : ExecEntryT)
   : (appendEntry entry).PreservesReachability config (fun x => True) (fun out tr => tr.at? out = some entry) := by
     -- can only unfold own definition
-    dsimp only [appendEntry, Traceful.PreservesReachability]
-    intro tr h_reach h_pre
-    sorry
+    simp only [appendEntry, Traceful.PreservesReachability, Traceful.PreservesReachabilityFrom, Traceful.run_mk]
+    intro tr h_reach _
+    constructor
+    . sorry -- grind[Trace.invariant_append]
+    . sorry -- grind
 
 -- there is a getEntry.proof already, so we have to define a new getEntry function
 public
