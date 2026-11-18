@@ -1,11 +1,17 @@
 name = "dylean-communication-layers"
 version = "0.1.0"
-defaultTargets = ["Communication", "SingleAuthMessage", "DyleanExtensions"]
+defaultTargets = ["Communication", "SingleAuthMessage"]
 
+# matches dependency of DyLibraries
 [[require]]
-name = "DY"
+name = "dylean"
 git = "https://github.com/BobDylean/dylean" 
-rev = "v4.36.0"
+rev = "main"
+
+# [[require]]
+# name = "DyLibraries"
+# git = "https://github.com/sec-stuttgart/dylean-libraries"
+# rev = "master"
 
 [[lean_lib]]
 name = "Communication"

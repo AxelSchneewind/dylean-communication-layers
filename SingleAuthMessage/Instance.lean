@@ -56,8 +56,7 @@ instance /-[Repr Communication.ExecEntryT]-/ : Repr ExecTrace.Entry where
         | ⟨ 1, ⟨ 0, ⟨ 0, {ev:={state}} ⟩  ⟩  ⟩ => "corrupted " ++ state.participant ++ ": " ++ (repr state.state.msg.payload) ++ " from " ++ state.state.sender
 
 def reprHelper [Repr ExecTrace.Entry] : ExecTrace → Std.Format
-  | .nil => ""
-  | .snoc trBefore entry => (reprHelper trBefore) ++ "\n" ++ (repr entry)
+  | tr  => (tr.toArray.map repr).foldl (fun x y => x ++ "\n" ++ y) ""
 
 public
 instance [Repr ExecTrace.Entry] : Repr ExecTrace where

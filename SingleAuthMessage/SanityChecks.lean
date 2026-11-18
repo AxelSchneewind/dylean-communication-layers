@@ -26,9 +26,9 @@ def honestProtocolRun: Traceful Unit := do
   let _ ← receive_message alice bob j
   return ()
 
-#guard (honestProtocolRun.run Trace.nil).fst = some ()
+#guard (honestProtocolRun.run Trace.empty).fst = some ()
 
-def honestProtocolRun_trace := (honestProtocolRun.run Trace.nil).snd.val
+def honestProtocolRun_trace := (honestProtocolRun.run Trace.empty).snd.val
 #eval honestProtocolRun_trace
 
 theorem honestProtocolRun_preservesReachability
@@ -60,7 +60,7 @@ theorem honestProtocolRun_preservesReachability
   grind
 
 theorem honestProtocolRun_properties:
-  let tr := (honestProtocolRun.run Trace.nil).snd.val
+  let tr := (honestProtocolRun.run Trace.empty).snd.val
   tr.Reachable reachability ∧
   ∃ (tr1 tr2 : Nat) (msg : single_message),
   tr1 ≤ tr2
@@ -96,9 +96,9 @@ def compromisedProtocolRun : Traceful Unit := do
   let _ ← receive_message alice bob j
   return ()
 
-#guard (compromisedProtocolRun.run Trace.nil).fst = some ()
+#guard (compromisedProtocolRun.run Trace.empty).fst = some ()
 
-def example_trace := (compromisedProtocolRun.run Trace.nil).snd.val
+def example_trace := (compromisedProtocolRun.run Trace.empty).snd.val
 #eval example_trace
 
 theorem compromisedProtocolRun_preservesReachability
@@ -135,7 +135,7 @@ theorem compromisedProtocolRun_preservesReachability
   . grind
 
 theorem compromisedProtocolRun_properties:
-  let tr := (compromisedProtocolRun.run Trace.nil).snd.val
+  let tr := (compromisedProtocolRun.run Trace.empty).snd.val
   tr.Reachable reachability ∧
   ∃ (tr1 tr2 : Nat),
   tr1 ≤ tr2
