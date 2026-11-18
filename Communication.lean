@@ -3,7 +3,6 @@ module
 public import DY.Trace
 public import DY.Bytes
 public import DY.Actions.PersistentLocalState
-public import CustomManipulation
 import DY.Meta.Step
 
 public import DyleanExtensions
@@ -79,7 +78,7 @@ def receiveAuthenticated
   [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
   (sender : Participant) (handle: Nat): Traceful Bytes :=
   do
-  let entry: ExecEntryT ← getEntry handle
+  let entry: ExecEntryT ← getEntryExtended handle
   guard (entry.sender = sender)
   return entry.payload
 

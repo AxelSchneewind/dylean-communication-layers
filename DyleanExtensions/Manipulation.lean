@@ -10,43 +10,24 @@ public import DY.Trace.Invariant
 public import DY.Label
 
 public import DY.Trace.Manipulation
+import all DY.Trace.Manipulation
 
 namespace DY
 
-@[expose]
 public
-def appendEntryExtended
-  [ExecTraceTypes] {EntryT: Type} [ExecTraceTypes.Has EntryT]
-  (entry: EntryT)
-  : Traceful Nat
-:=
-  Traceful.mk (fun tr =>
-    (some tr.length, ⟨ tr.append entry, by simp [Trace.append_le] ⟩ )
-  )
-
-public
-theorem appendEntryExtended.preservesReachability
+theorem appendEntry.preservesReachability
   {ExecEntryT : Type}
   [ExecTraceTypes]
   [ExecTraceTypes.Has ExecEntryT]
   (config : ReachabilityConfig)
   (entry : ExecEntryT)
-  : (appendEntryExtended entry).PreservesReachability config (fun x => True) (fun out tr => True /- tr.at? out = some entry -/) := by
-    dsimp only [appendEntryExtended, Traceful.PreservesReachability]
-    -- unfold appendEntryExtended
+  : (appendEntry entry).PreservesReachability config (fun x => True) (fun out tr => tr.at? out = some entry) := by
+    -- can only unfold own definition
+    dsimp only [appendEntry, Traceful.PreservesReachability]
     intro tr h_reach h_pre
+    sorry
 
-    apply Traceful.run_mk
-
-    . apply appendEntry.preservesReachability
-    . assumption
-    . assumption
-    intro x tr h_post h_reach h_le
-    apply Traceful.PreservesReachabilityFrom_pure
-    . assumption
-    . assumption
-    done
-
+-- there is a getEntry.proof already, so we have to define a new getEntry function
 public
 def getEntryExtended
   [ExecTraceTypes] {EntryT: Type} [ExecTraceTypes.Has EntryT]
