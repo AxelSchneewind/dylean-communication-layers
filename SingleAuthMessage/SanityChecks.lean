@@ -114,7 +114,7 @@ theorem compromisedProtocolRun_preservesReachability
 
   intro i tr post tr_inv le
 
-  have : Communication.participantCorrupted tr alice := by assumption
+  have : Communication.participantCompromised tr alice := by assumption
   have : msg.AttackerKnows tr := by apply Literal.attacker_knows_literalToBytes
   apply Traceful.PreservesReachabilityFrom_bind
   . apply Traceful.PreservesReachability_base Communication.sendAuthenticatedAttacker.reachability _ (alice, bob, msg)
@@ -139,13 +139,13 @@ theorem compromisedProtocolRun_properties:
   tr.Reachable reachability ∧
   ∃ (tr1 tr2 : Nat),
   tr1 ≤ tr2
-  ∧ Communication.participantCorruptedAt tr alice tr1
+  ∧ Communication.participantCompromisedAt tr alice tr1
   ∧ tr.EventLoggedAt (single_message_receive_event.mk alice bob {payload:=msg}) tr2 := by
     intro tr
     refine ⟨ ?_, ?_ ⟩
     . apply Traceful.PreservesReachability_to_Reachable compromisedProtocolRun_preservesReachability
       grind
-    simp only[Communication.participantCorruptedAt, DY.Trace.EventLoggedAt_eq_getEventAt]
+    simp only[Communication.participantCompromisedAt, DY.Trace.EventLoggedAt_eq_getEventAt]
     refine ⟨ 0, 2, ?_ ⟩
     native_decide
 

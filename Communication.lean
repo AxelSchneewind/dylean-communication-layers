@@ -150,7 +150,7 @@ tr1 ≤ tr2, authenticatedMessageSent tr1 sender receiver bytes
 
 @[expose]
 public
-def participantCorruptedAt
+def participantCompromisedAt
   [ExecTraceTypes]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   (tr : ExecTrace) (participant : Participant) (i : Nat) : Prop
@@ -158,41 +158,41 @@ def participantCorruptedAt
 
 @[expose]
 public
-def participantCorrupted
+def participantCompromised
   [ExecTraceTypes]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   (tr : ExecTrace) (participant : Participant) : Prop
-    := ∃i, participantCorruptedAt tr participant i
+    := ∃i, participantCompromisedAt tr participant i
 
 omit [BytesFunctor]
 public
-theorem participantCorruptedAt_le
+theorem participantCompromisedAt_le
   [ExecTraceTypes]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   (tr1 tr2 : ExecTrace) (participant : Participant) (i : Nat) :
-    tr1 ≤ tr2 → participantCorruptedAt tr1 participant i → participantCorruptedAt tr2 participant i
+    tr1 ≤ tr2 → participantCompromisedAt tr1 participant i → participantCompromisedAt tr2 participant i
     := by
-      unfold participantCorruptedAt
+      unfold participantCompromisedAt
       grind
 
-grind_pattern [grind_later] participantCorruptedAt_le =>
-tr1 ≤ tr2, participantCorruptedAt tr1 participant i
+grind_pattern [grind_later] participantCompromisedAt_le =>
+tr1 ≤ tr2, participantCompromisedAt tr1 participant i
 
 
 omit [BytesFunctor]
 public
-theorem participantCorrupted_le
+theorem participantCompromised_le
   [ExecTraceTypes]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   (tr1 tr2 : ExecTrace) (participant : Participant) :
-    tr1 ≤ tr2 → participantCorrupted tr1 participant → participantCorrupted tr2 participant
+    tr1 ≤ tr2 → participantCompromised tr1 participant → participantCompromised tr2 participant
     := by
-      unfold participantCorrupted
-      unfold participantCorruptedAt
+      unfold participantCompromised
+      unfold participantCompromisedAt
       grind
 
-grind_pattern [grind_later] participantCorrupted_le =>
-tr1 ≤ tr2, participantCorrupted tr1 participant
+grind_pattern [grind_later] participantCompromised_le =>
+tr1 ≤ tr2, participantCompromised tr1 participant
 
 
 end Execution
@@ -245,7 +245,7 @@ where
   invariant tr entry :=
     -- TODO: use IsWellFormed Bytes.Publishable entry instead?
     Bytes.Publishable entry.payload tr ∧
-    (HigherLayerInvariants.authenticated tr entry.sender entry.receiver entry.payload ∨ participantCorrupted tr.erase entry.sender)
+    (HigherLayerInvariants.authenticated tr entry.sender entry.receiver entry.payload ∨ participantCompromised tr.erase entry.sender)
 
 public
 theorem authenticatedMessageSentAt_imp_higher_layer_invariants
@@ -258,7 +258,7 @@ theorem authenticatedMessageSentAt_imp_higher_layer_invariants
   (tr: ProofTrace)
   : tr.Invariant →
     authenticatedMessageSentAt tr.erase sender receiver bytes i →
-    (HigherLayerInvariants.authenticated (tr.prefix i) sender receiver bytes ∨ participantCorrupted (tr.erase.prefix i) sender)
+    (HigherLayerInvariants.authenticated (tr.prefix i) sender receiver bytes ∨ participantCompromised (tr.erase.prefix i) sender)
 := by
   intro h_inv h_ev
   have := Trace.invariant_at tr i (by grind [authenticatedMessageSentAt]) h_inv
@@ -300,7 +300,7 @@ theorem compromiseParticipant.proof
   [TraceInvariant.Has ProofEntryT]
   [TraceInvariant.Has Compromise.ProofEntryT]
   (participant: Participant)
-  : HoareTriple (compromiseParticipant participant) (fun _ => True) (fun _ tr => participantCorrupted tr.erase participant )
+  : HoareTriple (compromiseParticipant participant) (fun _ => True) (fun _ tr => participantCompromised tr.erase participant )
 := by
   unfold compromiseParticipant
   step by simp[ProtocolEvent.EventInv.invariant]
@@ -323,7 +323,7 @@ theorem sendAuthenticatedAttacker.proof
   (msg: Bytes)
   : HoareTriple
     (sendAuthenticatedAttacker sender receiver msg)
-    (fun tr => msg.Publishable tr ∧ participantCorrupted tr.erase sender)
+    (fun tr => msg.Publishable tr ∧ participantCompromised tr.erase sender)
     -- could probably drop the postcondition
     (fun i tr => authenticatedMessageSentAt tr.erase sender receiver msg i)
 := by
@@ -397,7 +397,7 @@ theorem receiveAuthenticated.proof
     (fun _ => True)
     (fun msg tr =>
       msg.Publishable tr ∧
-      ((∃ receiver', authenticatedMessageSentAt tr.erase sender receiver' msg handle) ∨ participantCorrupted tr.erase sender)
+      ((∃ receiver', authenticatedMessageSentAt tr.erase sender receiver' msg handle) ∨ participantCompromised tr.erase sender)
     )
 := by
   apply HoareTriple.mk
@@ -446,10 +446,10 @@ public
 theorem compromiseParticipant.preservesReachability
   (config : ReachabilityConfig)
   (alice : Participant)
-  : (compromiseParticipant alice).PreservesReachability config (fun _x => True) (fun _out tr => participantCorrupted tr alice) := by
+  : (compromiseParticipant alice).PreservesReachability config (fun _x => True) (fun _out tr => participantCompromised tr alice) := by
   dsimp only [compromiseParticipant, Traceful.PreservesReachability]
   intro tr h_reach h_pre
-  simp[Communication.participantCorrupted, Communication.participantCorruptedAt, Traceful.PreservesReachabilityFrom]
+  simp[Communication.participantCompromised, Communication.participantCompromisedAt, Traceful.PreservesReachabilityFrom]
   constructor
   . -- TODO: try out Traceful.run_* after unfold (or at logEvent.preservesReachability)
     apply ProtocolEvent.logEvent.preservesReachability
@@ -474,7 +474,7 @@ variable
 
 abbrev sendAuthenticatedAttacker.reachability: ReachabilityConfig where
   Input := Participant × Participant × Bytes
-  PreCond input tr := participantCorrupted tr input.fst ∧ input.snd.snd.AttackerKnows tr
+  PreCond input tr := participantCompromised tr input.fst ∧ input.snd.snd.AttackerKnows tr
   step input := ⟨ _, sendAuthenticatedAttacker input.fst input.snd.fst input.snd.snd ⟩
 
 abbrev receiveAuthenticated.reachability: ReachabilityConfig where
