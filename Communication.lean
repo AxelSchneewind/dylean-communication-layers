@@ -223,15 +223,15 @@ instance: ExecEntryAssociatedWithProofEntry ExecEntryT ProofEntryT where
 
 
 public
-class HigherLayerInvariants [BytesFunctor] [ExecTraceTypes] [ProofTraceTypes] where
+class CommunicationEventPredicates [BytesFunctor] [ExecTraceTypes] [ProofTraceTypes] where
   authenticated : ProofTrace → Participant → Participant → Bytes → Prop
 
   authenticated_later : ∀ tr1 tr2 sender receiver payload,
     tr1 ≤ tr2 → authenticated tr1 sender receiver payload →
     authenticated tr2 sender receiver payload
 
-grind_pattern [grind_later] HigherLayerInvariants.authenticated_later =>
-tr1 ≤ tr2, HigherLayerInvariants.authenticated tr1 sender receiver payload
+grind_pattern [grind_later] CommunicationEventPredicates.authenticated_later =>
+tr1 ≤ tr2, CommunicationEventPredicates.authenticated tr1 sender receiver payload
 
 
 -- entry invariant
@@ -239,18 +239,18 @@ public
 instance
   [ExecTraceTypes] [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes] [BytesInvariants]
-  [HigherLayerInvariants]
+  [CommunicationEventPredicates]
   : SubTraceInvariant ProofEntryT
 where
   invariant tr entry :=
     -- TODO: use IsWellFormed Bytes.Publishable entry instead?
     Bytes.Publishable entry.payload tr ∧
-    (HigherLayerInvariants.authenticated tr entry.sender entry.receiver entry.payload ∨ participantCompromised tr.erase entry.sender)
+    (CommunicationEventPredicates.authenticated tr entry.sender entry.receiver entry.payload ∨ participantCompromised tr.erase entry.sender)
 
 public
 theorem authenticatedMessageSentAt_imp_higher_layer_invariants
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant] [BytesInvariants]
-  [HigherLayerInvariants]
+  [CommunicationEventPredicates]
   [ExecTraceTypes.Has Compromise.ExecEntryT] [ProofTraceTypes.Has Compromise.ProofEntryT] [TraceInvariant.Has Compromise.ProofEntryT]
   [ExecTraceTypes.Has ExecEntryT] [ProofTraceTypes.Has ProofEntryT] [TraceInvariant.Has ProofEntryT]
   (sender receiver: Participant) (bytes: Bytes)
@@ -258,7 +258,7 @@ theorem authenticatedMessageSentAt_imp_higher_layer_invariants
   (tr: ProofTrace)
   : tr.Invariant →
     authenticatedMessageSentAt tr.erase sender receiver bytes i →
-    (HigherLayerInvariants.authenticated (tr.prefix i) sender receiver bytes ∨ participantCompromised (tr.erase.prefix i) sender)
+    (CommunicationEventPredicates.authenticated (tr.prefix i) sender receiver bytes ∨ participantCompromised (tr.erase.prefix i) sender)
 := by
   intro h_inv h_ev
   have := Trace.invariant_at tr i (by grind [authenticatedMessageSentAt]) h_inv
@@ -272,7 +272,7 @@ theorem authenticatedMessageSentAt_imp_higher_layer_invariants
 public
 instance baseAttackerKnowledgeTheorem
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant] [BytesInvariants]
-  [HigherLayerInvariants]
+  [CommunicationEventPredicates]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has Compromise.ProofEntryT]
   [TraceInvariant.Has Compromise.ProofEntryT]
@@ -292,7 +292,7 @@ where
 theorem compromiseParticipant.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
-  [HigherLayerInvariants]
+  [CommunicationEventPredicates]
   [ExecTraceTypes.Has ExecEntryT]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
@@ -312,7 +312,7 @@ public
 theorem sendAuthenticatedAttacker.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
-  [HigherLayerInvariants]
+  [CommunicationEventPredicates]
   [ExecTraceTypes.Has ExecEntryT]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
@@ -348,7 +348,7 @@ public
 theorem sendAuthenticated.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
-  [HigherLayerInvariants]
+  [CommunicationEventPredicates]
   [ExecTraceTypes.Has ExecEntryT]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
@@ -361,7 +361,7 @@ theorem sendAuthenticated.proof
     (sendAuthenticated sender receiver msg)
     (fun tr => msg.Publishable tr
       -- has to be ensured by higher layer
-      ∧ HigherLayerInvariants.authenticated tr sender receiver msg)
+      ∧ CommunicationEventPredicates.authenticated tr sender receiver msg)
     (fun i tr => authenticatedMessageSentAt tr.erase sender receiver msg i)
 := by
   apply HoareTriple.mk
@@ -385,7 +385,7 @@ public
 theorem receiveAuthenticated.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
-  [HigherLayerInvariants]
+  [CommunicationEventPredicates]
   [ExecTraceTypes.Has ExecEntryT]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
@@ -463,7 +463,7 @@ end
 variable
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
-  [HigherLayerInvariants]
+  [CommunicationEventPredicates]
   [ExecTraceTypes.Has ExecEntryT] [ ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT] [ProofTraceTypes.Has Compromise.ProofEntryT]
   [TraceInvariant.Has ProofEntryT]  [TraceInvariant.Has Compromise.ProofEntryT]
@@ -507,7 +507,7 @@ public instance: ReachabilityConfig.HasStep sendAuthenticatedAttacker.reachabili
 variable
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
-  [HigherLayerInvariants]
+  [CommunicationEventPredicates]
   [ExecTraceTypes.Has ExecEntryT]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
