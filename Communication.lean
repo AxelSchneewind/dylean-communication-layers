@@ -18,15 +18,15 @@ namespace Compromise
 
 -- TODO: adjust identifier
 public
-structure ParticipantCompromiseEvent where
+structure CommunicationCompromiseEvent where
   participant: Participant
   deriving DecidableEq
 
 public
-instance : Repr ParticipantCompromiseEvent where
+instance : Repr CommunicationCompromiseEvent where
   reprPrec e _ := "compromised: " ++ e.participant
 
-#combine into ExecEntryT, baseAttackerKnowledge from ProtocolEvent ParticipantCompromiseEvent
+#combine into ExecEntryT, baseAttackerKnowledge from ProtocolEvent CommunicationCompromiseEvent
 
 end Compromise
 
@@ -56,7 +56,7 @@ def compromiseParticipant
   [ExecTraceTypes]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   (participant : Participant): Traceful Unit := do
-  ProtocolEvent.logEvent (Compromise.ParticipantCompromiseEvent.mk participant)
+  ProtocolEvent.logEvent (Compromise.CommunicationCompromiseEvent.mk participant)
 
 public
 def sendAuthenticatedAttacker
@@ -154,7 +154,7 @@ def participantCompromisedAt
   [ExecTraceTypes]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   (tr : ExecTrace) (participant : Participant) (i : Nat) : Prop
-    := tr.EventLoggedAt (Compromise.ParticipantCompromiseEvent.mk participant) i
+    := tr.EventLoggedAt (Compromise.CommunicationCompromiseEvent.mk participant) i
 
 @[expose]
 public
@@ -203,12 +203,12 @@ namespace Compromise
 
 public instance
   [ExecTraceTypes] [ProofTraceTypes]
-  : ProtocolEvent.EventInv ParticipantCompromiseEvent
+  : ProtocolEvent.EventInv CommunicationCompromiseEvent
   where
     invariant _ _ := True
 
 #combine into ProofEntryT, SubTraceInvariant, SubBaseAttackerKnowledgeTheorem from
-  ProtocolEvent ParticipantCompromiseEvent
+  ProtocolEvent CommunicationCompromiseEvent
 
 end Compromise
 
