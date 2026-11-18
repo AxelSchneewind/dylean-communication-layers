@@ -6,6 +6,8 @@ public import DY.Actions.PersistentLocalState
 public import CustomManipulation
 import DY.Meta.Step
 
+public import DyleanExtensions
+
 namespace DY.Communication
 
 variable [BytesFunctor]
@@ -14,6 +16,7 @@ section Execution
 
 namespace Compromise
 
+-- TODO: adjust identifier
 public
 structure ParticipantCompromiseEvent where
   participant: Participant
@@ -218,6 +221,7 @@ instance: ErasableProofEntry ExecEntryT ProofEntryT := ErasableProofEntry.defaul
 public
 instance: ExecEntryAssociatedWithProofEntry ExecEntryT ProofEntryT where
 
+
 public
 class HigherLayerInvariants [BytesFunctor] [ExecTraceTypes] [ProofTraceTypes] where
   authenticated : ProofTrace → Participant → Participant → Bytes → Prop
@@ -400,7 +404,7 @@ theorem receiveAuthenticated.proof
   unfold receiveAuthenticated
   -- getEntry
   step
-  -- get stronger postcondition of getEntry
+  -- get postcondition of getEntry
   have h_entry : ∃ proofEntry:ProofEntryT,
       entry = ErasableProofEntry.erase proofEntry ∧
       SubTraceInvariant.invariant (tr.prefix handle) proofEntry ∧
@@ -445,8 +449,10 @@ theorem compromiseParticipant.preservesReachability
   : (compromiseParticipant alice).PreservesReachability config (fun _x => True) (fun _out tr => participantCorrupted tr alice) := by
   dsimp only [compromiseParticipant, Traceful.PreservesReachability]
   intro tr h_reach h_pre
-  simp[Communication.participantCorrupted, Communication.participantCorruptedAt]
-  apply ProtocolEvent.logEvent.preservesReachability
+  simp[Communication.participantCorrupted, Communication.participantCorruptedAt, Traceful.PreservesReachabilityFrom]
+  constructor
+  . -- TODO: try out Traceful.run_* after unfold (or at logEvent.preservesReachability)
+    apply ProtocolEvent.logEvent.preservesReachability
   . assumption
   . trivial
 section

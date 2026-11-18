@@ -106,7 +106,6 @@ theorem compromisedProtocolRun_preservesReachability
 := by
   unfold compromisedProtocolRun
 
-  -- TODO: get postcondition from compromiseParticipant. (maybe PreservesReachability with postcondition)
   intro tr reach pre
   apply Traceful.PreservesReachabilityFrom_bind
   . apply Communication.compromiseParticipant.preservesReachability
@@ -116,8 +115,7 @@ theorem compromisedProtocolRun_preservesReachability
   intro i tr post tr_inv le
 
   have : Communication.participantCorrupted tr alice := by assumption
-  -- this is required for precondition, how to get from previous step?
-  have : msg.AttackerKnows tr := by sorry
+  have : msg.AttackerKnows tr := by apply Literal.attacker_knows_literalToBytes
   apply Traceful.PreservesReachabilityFrom_bind
   . apply Traceful.PreservesReachability_base Communication.sendAuthenticatedAttacker.reachability _ (alice, bob, msg)
   . assumption
