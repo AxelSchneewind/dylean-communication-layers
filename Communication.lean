@@ -448,10 +448,8 @@ theorem compromiseParticipant.preservesReachability
   : (compromiseParticipant alice).PreservesReachability config (fun _x => True) (fun _out tr => participantCompromised tr alice) := by
   dsimp only [compromiseParticipant, Traceful.PreservesReachability]
   intro tr h_reach h_pre
-  simp[Communication.participantCompromised, Communication.participantCompromisedAt, Traceful.PreservesReachabilityFrom]
-  constructor
-  . -- TODO: try out Traceful.run_* after unfold (or at logEvent.preservesReachability)
-    apply ProtocolEvent.logEvent.preservesReachability
+  simp[Communication.participantCompromised, Communication.participantCompromisedAt]
+  apply ProtocolEvent.logEvent.preservesReachability
   . assumption
   . trivial
 section
