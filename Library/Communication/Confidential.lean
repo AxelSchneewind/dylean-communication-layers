@@ -2,6 +2,7 @@ module
 
 public import DY.Trace
 public import DY.Bytes
+public import DY.Label.Basic
 public import DY.Actions.PersistentLocalState
 import DY.Meta.Step
 
@@ -241,6 +242,15 @@ grind_pattern [grind_later] CommunicationEventPredicates.confidential_later =>
 tr1 ≤ tr2, CommunicationEventPredicates.confidential tr1 sender receiver payload
 
 
+public
+def CommunicationLabel
+  [ExecTraceTypes]
+  [ExecTraceTypes.Has Compromise.ExecEntryT]
+  (participant : Participant) : Label := {
+  isCorrupt tr := participantCompromised tr participant
+  isCorruptLater tr1 tr2 := participantCompromised_le tr1 tr2 participant
+}
+
 -- entry invariant
 public
 instance
@@ -249,9 +259,10 @@ instance
   [CommunicationEventPredicates]
   : SubTraceInvariant ProofEntryT
 where
-  invariant tr entry := True
+  invariant tr entry := (entry.payload.label tr).canFlow (CommunicationLabel entry.receiver) tr.erase
+    ∧ entry.payload.Invariant tr
     -- TODO: do we require event predicates as entry invariant?
-    -- (CommunicationEventPredicates.confidential tr entry.sender entry.receiver entry.payload ∨ participantCompromised tr.erase entry.sender)
+    -- ∧ (CommunicationEventPredicates.confidential tr entry.sender entry.receiver entry.payload ∨ participantCompromised tr.erase entry.sender)
 
 -- public
 -- theorem confidentialMessageSentAt_imp_higher_layer_invariants
@@ -276,6 +287,8 @@ where
 --   grind
 
 
+-- if attacker learns bytes from entry,
+-- then the bytes must be publishable
 public
 instance baseAttackerKnowledgeTheorem
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant] [BytesInvariants]
@@ -294,11 +307,17 @@ where
     simp [baseAttackerKnowledge, ErasableProofEntry.erase] at attackerKnows
     let ⟨ b_eq_entry, comp ⟩ := attackerKnows
     unfold Bytes.Publishable
-    -- TODO;
     constructor
-    . sorry
-    . sorry
-    -- grind[Bytes.AttackerKnows_implies_Publishable]
+    . grind
+    . unfold Label.canFlow
+      intro tr h_le _
+      subst b
+      simp at attackerKnows
+      have : (CommunicationLabel entry.receiver).isCorrupt tr := by
+        simp[CommunicationLabel]
+        grind[participantCompromised_le]
+      have : (entry.payload.label trBefore).canFlow (CommunicationLabel entry.receiver) tr := by grind
+      grind[Label.canFlow]
 
 @[instance]
 theorem compromiseParticipant.proof
@@ -344,6 +363,10 @@ theorem sendConfidentialAttacker.proof
   -- appendEntry
   step with ⟨ fun _ => ExecEntryT.Confidential sender receiver msg ⟩ by
     simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Confidential]
+    have : (msg.label tr).canFlow Label.pub tr.erase := by grind
+    refine ⟨ ?_, ?_ ⟩
+    . grind[canFlowTrans]
+    . grind
   unfold confidentialMessageSentAt
   let entry : ExecEntryT := (ExecEntryT.Confidential sender receiver msg)
   have h_at?_x : tr.at? x = some entry := by assumption
@@ -370,9 +393,10 @@ theorem sendConfidential.proof
   (msg: Bytes)
   : HoareTriple
     (sendConfidential sender receiver msg)
-    (fun tr => msg.Publishable tr
+    (fun tr => msg.Invariant tr ∧ (msg.label tr).canFlow Label.pub tr.erase)
+    -- msg.Publishable tr
       -- has to be ensured by higher layer
-      ∨ CommunicationEventPredicates.confidential tr sender receiver msg)
+      -- ∨ CommunicationEventPredicates.confidential tr sender receiver msg)
     (fun i tr => confidentialMessageSentAt tr.erase sender receiver msg i)
 := by
   apply HoareTriple.mk
@@ -381,6 +405,7 @@ theorem sendConfidential.proof
   -- appendEntry
   step with ⟨ fun _ => ExecEntryT.Confidential sender receiver msg ⟩ by
     simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Confidential]
+    grind[canFlowTrans]
   unfold confidentialMessageSentAt
   let entry : ExecEntryT := (ExecEntryT.Confidential sender receiver msg)
   have h_at?_x : tr.at? x = some entry := by assumption
@@ -406,7 +431,7 @@ theorem receiveConfidential.proof
   : HoareTriple
     (receiveConfidential sender receiver handle)
     (fun _ => True)
-    (fun msg tr => True)
+    (fun _msg _tr => True)
 := by
   apply HoareTriple.mk
   unfold receiveConfidential
