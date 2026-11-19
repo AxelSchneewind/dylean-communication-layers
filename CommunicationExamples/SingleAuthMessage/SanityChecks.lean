@@ -146,7 +146,8 @@ theorem compromisedProtocolRun_properties:
     . apply Traceful.PreservesReachability_to_Reachable compromisedProtocolRun_preservesReachability
       grind
     simp only[Communication.Authenticated.participantCompromisedAt, DY.Trace.EventLoggedAt_eq_getEventAt]
-    refine ⟨ 0, 2, ?_ ⟩
+    refine ⟨ 0, 2, ?_, ?_ ⟩
+    trivial
     native_decide
 
 #print axioms compromisedProtocolRun_properties
