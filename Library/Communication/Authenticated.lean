@@ -7,7 +7,7 @@ import DY.Meta.Step
 
 public import DyleanExtensions
 
-namespace DY.Communication.Authenticated
+namespace DY.Library.Communication.Authenticated
 
 variable [BytesFunctor]
 
@@ -567,4 +567,4 @@ end
 
 end Reachability
 
-end DY.Communication.Authenticated
+end DY.Library.Communication.Authenticated

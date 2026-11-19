@@ -1,9 +1,9 @@
 module
 
-public import CommunicationExamples.SingleAuthMessage.Specification
-public import CommunicationExamples.SingleAuthMessage.Proof
+public import Library.Examples.SingleAuthMessage.Specification
+public import Library.Examples.SingleAuthMessage.Proof
 
-namespace DY.Example.CommunicationExamples.SingleAuthMessage
+namespace DY.Example.Library.Examples.SingleAuthMessage
 
 -- Future work: the following section could avoid a lot of repetition
 public section
@@ -20,8 +20,8 @@ instance: HasExecBytes where
   baseAttackerKnowledge,
 from
   Network,
-  Communication.Authenticated,
-  Communication.Authenticated.Compromise,
+  Library.Communication.Authenticated,
+  Library.Communication.Authenticated.Compromise,
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
@@ -40,7 +40,7 @@ instance : Repr Bytes where
 
 
 public
-instance /-[Repr Communication.ExecEntryT]-/ : Repr ExecTrace.Entry where
+instance /-[Repr Library.CommunicationExecEntryT]-/ : Repr ExecTrace.Entry where
   reprPrec entry _ := match entry with
     | ⟨ 0, s ⟩ => "network: " ++ (repr s.msg)
     -- how to used the (Repr ExecEntryT)-Instance from communication here?
@@ -75,8 +75,8 @@ instance : HasRepr where
   ProofEntryT,
 from
   Network,
-  Communication.Authenticated,
-  Communication.Authenticated.Compromise,
+  Library.Communication.Authenticated,
+  Library.Communication.Authenticated.Compromise,
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
@@ -96,8 +96,8 @@ instance: HasBytesInvariants where
   SubBaseAttackerKnowledgeTheorem,
 from
   Network,
-  Communication.Authenticated,
-  Communication.Authenticated.Compromise,
+  Library.Communication.Authenticated,
+  Library.Communication.Authenticated.Compromise,
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
@@ -112,4 +112,4 @@ instance: HasTraceInvariant where
 
 end
 
-end DY.Example.CommunicationExamples.SingleAuthMessage
+end DY.Example.Library.Examples.SingleAuthMessage

@@ -2,12 +2,12 @@ module
 
 import DY.Meta
 import DY.Meta.Utils
-public import CommunicationExamples.SingleAuthMessage.Specification
-public import CommunicationExamples.SingleAuthMessage.Proof
-import all CommunicationExamples.SingleAuthMessage.Proof
-public import CommunicationExamples.SingleAuthMessage.Instance
+public import Library.Examples.SingleAuthMessage.Specification
+public import Library.Examples.SingleAuthMessage.Proof
+import all Library.Examples.SingleAuthMessage.Proof
+public import Library.Examples.SingleAuthMessage.Instance
 
-namespace DY.Example.CommunicationExamples.SingleAuthMessage
+namespace DY.Example.Library.Examples.SingleAuthMessage
 
 -- For authenticated messages we can prove on the receiver side that either the
 -- sender triggered a send event or the sender is corrupt.
@@ -20,7 +20,7 @@ theorem sender_authentication
     tr.EventLoggedAt ({sender, receiver, msg} : single_message_receive_event)  time →
     (
       (tr.prefix time).EventLogged ({sender, msg} : single_message_send_event)
-      ∨ Communication.Authenticated.participantCompromised (tr.prefix time) sender
+      ∨ Library.Communication.Authenticated.participantCompromised (tr.prefix time) sender
     ) := by
       -- requires ReachableImpliesInvariant for Communication
       apply Trace.apply_Reachable_implies_Invariant
@@ -30,6 +30,6 @@ theorem sender_authentication
         have recv_event_inv := Trace.EventLoggedAt_imp_EventInv _ time _ h_trinv h_recv_event
         simp [ProtocolEvent.EventInv.invariant] at recv_event_inv
         simp [ProtocolEvent.EventInv.invariant]
-        grind[Communication.Authenticated.participantCompromised_le]
+        grind[Library.Communication.Authenticated.participantCompromised_le]
       simp [ProtocolEvent.EventInv.invariant, Trace.EventLogged] at event_invariant
       grind
