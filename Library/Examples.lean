@@ -2,3 +2,6 @@ module
 
 import Library.Examples.SingleAuthMessage.SecurityTheorems
 import Library.Examples.SingleAuthMessage.SanityChecks
+
+import Library.Examples.SingleConfMessage.SecurityTheorems
+import Library.Examples.SingleConfMessage.SanityChecks
