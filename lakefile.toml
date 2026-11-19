@@ -1,6 +1,6 @@
 name = "dylean-communication-layers"
 version = "0.1.0"
-defaultTargets = ["Communication", "SingleAuthMessage"]
+defaultTargets = ["Communication", "CommunicationExamples"]
 
 # matches dependency of DyLibraries
 [[require]]
@@ -17,7 +17,7 @@ rev = "main"
 name = "Communication"
 
 [[lean_lib]]
-name = "SingleAuthMessage"
+name = "CommunicationExamples"
 
 [[lean_lib]]
 name = "DyleanExtensions"

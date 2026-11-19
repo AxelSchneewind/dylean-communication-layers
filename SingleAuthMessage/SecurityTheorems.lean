@@ -1,14 +1,13 @@
 module
 
-
 import DY.Meta
 import DY.Meta.Utils
-public import SingleAuthMessage.Specification
-public import SingleAuthMessage.Proof
-import all SingleAuthMessage.Proof
-public import SingleAuthMessage.Instance
+public import CommunicationExamples.SingleAuthMessage.Specification
+public import CommunicationExamples.SingleAuthMessage.Proof
+import all CommunicationExamples.SingleAuthMessage.Proof
+public import CommunicationExamples.SingleAuthMessage.Instance
 
-namespace DY.Example.SingleAuthMessage
+namespace DY.Example.CommunicationExamples.SingleAuthMessage
 
 -- For authenticated messages we can prove on the receiver side that either the
 -- sender triggered a send event or the sender is corrupt.

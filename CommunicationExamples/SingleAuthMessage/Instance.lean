@@ -1,9 +1,9 @@
 module
 
-public import SingleAuthMessage.Specification
-public import SingleAuthMessage.Proof
+public import CommunicationExamples.SingleAuthMessage.Specification
+public import CommunicationExamples.SingleAuthMessage.Proof
 
-namespace DY.Example.SingleAuthMessage
+namespace DY.Example.CommunicationExamples.SingleAuthMessage
 
 -- Future work: the following section could avoid a lot of repetition
 public section
@@ -20,8 +20,8 @@ instance: HasExecBytes where
   baseAttackerKnowledge,
 from
   Network,
-  Communication,
-  Communication.Compromise,
+  Communication.Authenticated,
+  Communication.Authenticated.Compromise,
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
@@ -75,8 +75,8 @@ instance : HasRepr where
   ProofEntryT,
 from
   Network,
-  Communication,
-  Communication.Compromise,
+  Communication.Authenticated,
+  Communication.Authenticated.Compromise,
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
@@ -96,8 +96,8 @@ instance: HasBytesInvariants where
   SubBaseAttackerKnowledgeTheorem,
 from
   Network,
-  Communication,
-  Communication.Compromise,
+  Communication.Authenticated,
+  Communication.Authenticated.Compromise,
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
@@ -112,4 +112,4 @@ instance: HasTraceInvariant where
 
 end
 
-end DY.Example.SingleAuthMessage
+end DY.Example.CommunicationExamples.SingleAuthMessage

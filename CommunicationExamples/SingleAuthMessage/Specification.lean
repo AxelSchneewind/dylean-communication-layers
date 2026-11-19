@@ -11,7 +11,7 @@ public import DY.Actions.ProtocolEvent
 public import DY.Actions.PersistentLocalState
 public import DY.Comparse
 
-namespace DY.Example.SingleAuthMessage
+namespace DY.Example.CommunicationExamples.SingleAuthMessage
 
 open DY.Comparse
 
@@ -136,8 +136,8 @@ public
 class HasExecTrace extends HasExecBytes where
   [traceExec: ExecTraceTypes]
   [traceExec0: ExecTraceTypes.Has Network.ExecEntryT]
-  [traceExec1: ExecTraceTypes.Has Communication.ExecEntryT]
-  [traceExec2: ExecTraceTypes.Has Communication.Compromise.ExecEntryT]
+  [traceExec1: ExecTraceTypes.Has Communication.Authenticated.ExecEntryT]
+  [traceExec2: ExecTraceTypes.Has Communication.Authenticated.Compromise.ExecEntryT]
   [traceExec3: ExecTraceTypes.Has Random.ExecEntryT]
   [traceExec4: ExecTraceTypes.Has (ProtocolEvent.ExecEntryT single_message_send_event)]
   [traceExec5: ExecTraceTypes.Has (ProtocolEvent.ExecEntryT single_message_receive_event)]
@@ -172,11 +172,11 @@ public
 def send_message (sender receiver : Participant) (state_id:Nat) : Traceful Nat := do
   let st:single_message_state ← PersistentLocalState.getLocalState sender state_id
   guard (st.sender = sender)
-  Communication.sendAuthenticated sender receiver st.msg.payload
+  Communication.Authenticated.sendAuthenticated sender receiver st.msg.payload
 
 public
 def receive_message (sender receiver : Participant) (msg_id : Nat) : Traceful Nat := do
-  let msg_bytes ← Communication.receiveAuthenticated sender msg_id
+  let msg_bytes ← Communication.Authenticated.receiveAuthenticated sender msg_id
   let msg : single_message := {payload:=msg_bytes}
   ProtocolEvent.logEvent ({sender, receiver, msg} : single_message_receive_event )
   let state_id ← PersistentLocalState.storeLocalState receiver ({sender, msg} : single_message_state)
@@ -197,11 +197,11 @@ end
 
 #combine into ReachabilityConfig from
   Network,
-  Communication,
+  Communication.Authenticated,
   prepare_message,
   send_message,
   receive_message,
 
 end Reachability
 
-end DY.Example.SingleAuthMessage
+end DY.Example.CommunicationExamples.SingleAuthMessage

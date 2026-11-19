@@ -2,17 +2,17 @@ module
 
 import DY.Meta
 import DY.Meta.Utils
-public import SingleAuthMessage.Specification
-public import SingleAuthMessage.SecurityTheorems
-import SingleAuthMessage.Instance
-public meta import SingleAuthMessage.Instance
+public import CommunicationExamples.SingleAuthMessage.Specification
+public import CommunicationExamples.SingleAuthMessage.SecurityTheorems
+import CommunicationExamples.SingleAuthMessage.Instance
+public meta import CommunicationExamples.SingleAuthMessage.Instance
 
 -- for formatting
 public import Init.Data.Format.Basic
 
 public import Communication
 
-namespace DY.Example.SingleAuthMessage
+namespace DY.Example.CommunicationExamples.SingleAuthMessage
 
 abbrev alice := "Alice"
 abbrev bob := "Bob"
@@ -91,8 +91,8 @@ def msg [Literal.CanMkLiteral Bytes] : Bytes := Literal.literalToBytes (ByteArra
 
 def compromisedProtocolRun : Traceful Unit := do
   -- attacker prepares msg for bob
-  Communication.compromiseParticipant alice
-  let j ← Communication.sendAuthenticatedAttacker alice bob msg
+  Communication.Authenticated.compromiseParticipant alice
+  let j ← Communication.Authenticated.sendAuthenticatedAttacker alice bob msg
   let _ ← receive_message alice bob j
   return ()
 
@@ -108,19 +108,19 @@ theorem compromisedProtocolRun_preservesReachability
 
   intro tr reach pre
   apply Traceful.PreservesReachabilityFrom_bind
-  . apply Communication.compromiseParticipant.preservesReachability
+  . apply Communication.Authenticated.compromiseParticipant.preservesReachability
   . assumption
   . assumption
 
   intro i tr post tr_inv le
 
-  have : Communication.participantCompromised tr alice := by assumption
+  have : Communication.Authenticated.participantCompromised tr alice := by assumption
   have : msg.AttackerKnows tr := by apply Literal.attacker_knows_literalToBytes
   apply Traceful.PreservesReachabilityFrom_bind
-  . apply Traceful.PreservesReachability_base Communication.sendAuthenticatedAttacker.reachability _ (alice, bob, msg)
+  . apply Traceful.PreservesReachability_base Communication.Authenticated.sendAuthenticatedAttacker.reachability _ (alice, bob, msg)
   . assumption
   . -- precondition proof
-    unfold Communication.sendAuthenticatedAttacker.reachability
+    unfold Communication.Authenticated.sendAuthenticatedAttacker.reachability
     grind
 
   intro j tr post tr_inv le
@@ -139,13 +139,13 @@ theorem compromisedProtocolRun_properties:
   tr.Reachable reachability ∧
   ∃ (tr1 tr2 : Nat),
   tr1 ≤ tr2
-  ∧ Communication.participantCompromisedAt tr alice tr1
+  ∧ Communication.Authenticated.participantCompromisedAt tr alice tr1
   ∧ tr.EventLoggedAt (single_message_receive_event.mk alice bob {payload:=msg}) tr2 := by
     intro tr
     refine ⟨ ?_, ?_ ⟩
     . apply Traceful.PreservesReachability_to_Reachable compromisedProtocolRun_preservesReachability
       grind
-    simp only[Communication.participantCompromisedAt, DY.Trace.EventLoggedAt_eq_getEventAt]
+    simp only[Communication.Authenticated.participantCompromisedAt, DY.Trace.EventLoggedAt_eq_getEventAt]
     refine ⟨ 0, 2, ?_ ⟩
     native_decide
 
@@ -154,4 +154,4 @@ theorem compromisedProtocolRun_properties:
 end compromised
 
 
-end DY.Example.SingleAuthMessage
+end DY.Example.CommunicationExamples.SingleAuthMessage
