@@ -11,7 +11,7 @@ public import DY.Actions.ProtocolEvent
 public import DY.Actions.PersistentLocalState
 public import DY.Comparse
 
-namespace DY.Example.Library.Examples.SingleAuthMessage
+namespace DY.Example.SingleAuthMessage
 
 open DY.Comparse
 
@@ -204,4 +204,4 @@ end
 
 end Reachability
 
-end DY.Example.Library.Examples.SingleAuthMessage
+end DY.Example.SingleAuthMessage

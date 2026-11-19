@@ -3,7 +3,7 @@ module
 public import Library.Examples.SingleAuthMessage.Specification
 public import Library.Examples.SingleAuthMessage.Proof
 
-namespace DY.Example.Library.Examples.SingleAuthMessage
+namespace DY.Example.SingleAuthMessage
 
 -- Future work: the following section could avoid a lot of repetition
 public section
@@ -112,4 +112,4 @@ instance: HasTraceInvariant where
 
 end
 
-end DY.Example.Library.Examples.SingleAuthMessage
+end DY.Example.SingleAuthMessage

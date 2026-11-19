@@ -7,7 +7,7 @@ public import Library.Examples.SingleAuthMessage.Proof
 import all Library.Examples.SingleAuthMessage.Proof
 public import Library.Examples.SingleAuthMessage.Instance
 
-namespace DY.Example.Library.Examples.SingleAuthMessage
+namespace DY.Example.SingleAuthMessage
 
 -- For authenticated messages we can prove on the receiver side that either the
 -- sender triggered a send event or the sender is corrupt.

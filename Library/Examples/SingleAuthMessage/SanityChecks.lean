@@ -12,7 +12,7 @@ public import Init.Data.Format.Basic
 
 public import Library.Communication
 
-namespace DY.Example.Library.Examples.SingleAuthMessage
+namespace DY.Example.SingleAuthMessage
 
 abbrev alice := "Alice"
 abbrev bob := "Bob"
@@ -155,4 +155,4 @@ theorem compromisedProtocolRun_properties:
 end compromised
 
 
-end DY.Example.Library.Examples.SingleAuthMessage
+end DY.Example.SingleAuthMessage

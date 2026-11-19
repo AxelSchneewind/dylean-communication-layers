@@ -5,7 +5,7 @@ public import Library.Communication
 public import Library.Examples.SingleAuthMessage.Specification
 import all Library.Examples.SingleAuthMessage.Specification
 
-namespace DY.Example.Library.Examples.SingleAuthMessage
+namespace DY.Example.SingleAuthMessage
 
 open DY.Comparse
 
@@ -314,4 +314,4 @@ variable [HasTraceInvariant]
 
 end LabelLemma
 
-end DY.Example.Library.Examples.SingleAuthMessage
+end DY.Example.SingleAuthMessage
