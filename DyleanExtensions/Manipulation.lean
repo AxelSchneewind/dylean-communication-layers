@@ -4,8 +4,11 @@ import Init.Control.Lawful.Basic
 public import Lean
 public import DY.Bytes.Basic
 public import DY.Trace.Basic
+import all DY.Trace.Basic
 public import DY.Trace.Monad
+import all DY.Trace.Monad
 public import DY.Trace.Reachability
+import all DY.Trace.Reachability
 public import DY.Trace.Invariant
 public import DY.Label
 
@@ -21,13 +24,13 @@ theorem appendEntry.preservesReachability
   [ExecTraceTypes.Has ExecEntryT]
   (config : ReachabilityConfig)
   (entry : ExecEntryT)
-  : (appendEntry entry).PreservesReachability config (fun x => True) (fun out tr => tr.at? out = some entry) := by
-    -- can only unfold own definition
+  : (appendEntry entry).PreservesReachability config (fun _x => True) (fun out tr => tr.at? out = some entry) := by
     simp only [appendEntry, Traceful.PreservesReachability, Traceful.PreservesReachabilityFrom, Traceful.run_mk]
     intro tr h_reach _
     constructor
-    . sorry -- grind[Trace.invariant_append]
-    . sorry -- grind
+    . sorry
+    . grind[Trace.at?_append]
+
 
 -- there is a getEntry.proof already, so we have to define a new getEntry function
 public
