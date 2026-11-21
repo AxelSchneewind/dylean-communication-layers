@@ -393,10 +393,10 @@ theorem sendConfidential.proof
   (msg: Bytes)
   : HoareTriple
     (sendConfidential sender receiver msg)
-    (fun tr => msg.Invariant tr ∧ (msg.label tr).canFlow Label.pub tr.erase)
-    -- msg.Publishable tr
-      -- has to be ensured by higher layer
-      -- ∨ CommunicationEventPredicates.confidential tr sender receiver msg)
+    (fun tr => msg.Invariant tr
+      -- has to be ensured by higher layer, mainly concerning message label
+      ∧ (msg.label tr).canFlow (CommunicationLabel receiver) tr.erase
+      ∧ CommunicationEventPredicates.confidential tr sender receiver msg)
     (fun i tr => confidentialMessageSentAt tr.erase sender receiver msg i)
 := by
   apply HoareTriple.mk
@@ -405,7 +405,6 @@ theorem sendConfidential.proof
   -- appendEntry
   step with ⟨ fun _ => ExecEntryT.Confidential sender receiver msg ⟩ by
     simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Confidential]
-    grind[canFlowTrans]
   unfold confidentialMessageSentAt
   let entry : ExecEntryT := (ExecEntryT.Confidential sender receiver msg)
   have h_at?_x : tr.at? x = some entry := by assumption
