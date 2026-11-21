@@ -20,21 +20,23 @@ theorem message_confidentiality
     : ∀ tr: ExecTrace,
     tr.Reachable reachability →
     tr.EventLoggedAt ({sender, receiver, msg} : single_message_receive_event) send_time →
-    ¬msg.payload.AttackerKnows (tr.prefix send_time) →
+    msg.payload.AttackerKnows tr →
     ( -- attacker can only learn message by compromising receiver communication keys or participant states
-      ¬ msg.payload.AttackerKnows tr
+      msg.payload.AttackerKnows (tr.prefix send_time)
       ∨ Communication.Confidential.participantCompromised tr receiver
       ∨ PersistentLocalState.LocalStateCompromised p ({sender:=s, receiver:=r, msg:=msg}: single_message_state) tr
     ) := by
       -- requires ReachableImpliesInvariant for Communication
       apply Trace.apply_Reachable_implies_Invariant
-      intro tr h_trinv h_send_event h_not_known
+      intro tr h_trinv h_send_event h_known
       have event_invariant : single_message_receive_event.Invariant.invariant (tr.prefix recv_time) (single_message_receive_event.mk sender receiver msg) := by
         -- receive event logged
         have recv_event_inv := Trace.EventLoggedAt_imp_EventInv _ send_time _ h_trinv h_send_event
         simp [ProtocolEvent.EventInv.invariant] at recv_event_inv
         simp [ProtocolEvent.EventInv.invariant]
+
         -- grind[Communication.participantCompromised_le]
         sorry
       simp [ProtocolEvent.EventInv.invariant, Trace.EventLogged] at event_invariant
+
       sorry
