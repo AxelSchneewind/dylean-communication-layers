@@ -4,10 +4,14 @@ module
 import DY.Meta
 import DY.Meta.Utils
 import DY.Actions.PersistentLocalState
+import all DY.Bytes.AttackerKnowledge
+import all DY.Trace.Invariant
 public import Library.Examples.SingleConfMessage.Specification
 public import Library.Examples.SingleConfMessage.Proof
 import all Library.Examples.SingleConfMessage.Proof
 public import Library.Examples.SingleConfMessage.Instance
+
+import all Library.Communication.Confidential
 
 namespace DY.Example.SingleConfMessage
 
@@ -16,27 +20,19 @@ namespace DY.Example.SingleConfMessage
 public
 theorem message_confidentiality
       (sender receiver:Participant)
-      (msg:single_message) (send_time recv_time : Nat)
+      (msg:single_message) (send_time : Nat)
     : ∀ tr: ExecTrace,
     tr.Reachable reachability →
-    tr.EventLoggedAt ({sender, receiver, msg} : single_message_receive_event) send_time →
+    tr.EventLoggedAt ({sender, receiver, msg} : single_message_send_event) send_time →
     msg.payload.AttackerKnows tr →
     ( -- attacker can only learn message by compromising receiver communication keys or participant states
-      msg.payload.AttackerKnows (tr.prefix send_time)
-      ∨ Communication.Confidential.participantCompromised tr receiver
-      ∨ PersistentLocalState.LocalStateCompromised p ({sender:=s, receiver:=r, msg:=msg}: single_message_state) tr
+      Communication.Confidential.participantCompromised tr receiver
+      ∨ ∃ p s r, PersistentLocalState.LocalStateCompromised p ({sender:=s, receiver:=r, msg:=msg}: single_message_state) tr
     ) := by
       -- requires ReachableImpliesInvariant for Communication
       apply Trace.apply_Reachable_implies_Invariant
       intro tr h_trinv h_send_event h_known
-      have event_invariant : single_message_receive_event.Invariant.invariant (tr.prefix recv_time) (single_message_receive_event.mk sender receiver msg) := by
-        -- receive event logged
-        have recv_event_inv := Trace.EventLoggedAt_imp_EventInv _ send_time _ h_trinv h_send_event
-        simp [ProtocolEvent.EventInv.invariant] at recv_event_inv
-        simp [ProtocolEvent.EventInv.invariant]
-
-        -- grind[Communication.participantCompromised_le]
-        sorry
-      simp [ProtocolEvent.EventInv.invariant, Trace.EventLogged] at event_invariant
-
-      sorry
+      have send_event_inv := Trace.EventLoggedAt_imp_EventInv _ send_time _ h_trinv h_send_event
+      simp [ProtocolEvent.EventInv.invariant] at send_event_inv
+      simp_all[single_message_label, single_message_state_label, Communication.Confidential.CommunicationLabel]
+      grind

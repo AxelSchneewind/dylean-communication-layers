@@ -261,8 +261,11 @@ instance
 where
   invariant tr entry := (entry.payload.label tr).canFlow (CommunicationLabel entry.receiver) tr.erase
     ∧ entry.payload.Invariant tr
-    -- TODO: do we require event predicates as entry invariant?
-    -- ∧ (CommunicationEventPredicates.confidential tr entry.sender entry.receiver entry.payload ∨ participantCompromised tr.erase entry.sender)
+    ∧ ((CommunicationEventPredicates.confidential tr entry.sender entry.receiver entry.payload)
+      -- TODO: allow transfer of publishable messages. Then invariant does not hold.
+      -- this has to be handled here in order for attacker send function to work.
+      ∨ entry.payload.Publishable tr
+    )
 
 -- public
 -- theorem confidentialMessageSentAt_imp_higher_layer_invariants
@@ -364,9 +367,7 @@ theorem sendConfidentialAttacker.proof
   step with ⟨ fun _ => ExecEntryT.Confidential sender receiver msg ⟩ by
     simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Confidential]
     have : (msg.label tr).canFlow Label.pub tr.erase := by grind
-    refine ⟨ ?_, ?_ ⟩
-    . grind[canFlowTrans]
-    . grind
+    grind[canFlowTrans]
   unfold confidentialMessageSentAt
   let entry : ExecEntryT := (ExecEntryT.Confidential sender receiver msg)
   have h_at?_x : tr.at? x = some entry := by assumption
@@ -424,13 +425,16 @@ theorem receiveConfidential.proof
   [ExecTraceTypes.Has ExecEntryT]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
+  [ProofTraceTypes.Has Compromise.ProofEntryT]
   [TraceInvariant.Has ProofEntryT]
+  [TraceInvariant.Has Compromise.ProofEntryT]
   (sender receiver : Participant)
   (handle: Nat)
   : HoareTriple
     (receiveConfidential sender receiver handle)
     (fun _ => True)
-    (fun _msg _tr => True)
+    -- TODO: ensure predicate here?
+    (fun msg tr => CommunicationEventPredicates.confidential tr sender receiver msg)
 := by
   apply HoareTriple.mk
   unfold receiveConfidential
@@ -441,6 +445,7 @@ theorem receiveConfidential.proof
       entry = ErasableProofEntry.erase proofEntry ∧
       SubTraceInvariant.invariant (tr.prefix handle) proofEntry ∧
       tr.at? handle = some proofEntry := by grind
+  obtain ⟨ proofEntry, h_entry ⟩ := h_entry
   have entry_at_handle : tr.erase.at? handle = some entry := by
     simp[Trace.at?_eq_some, ErasableProofEntry.erase] at h_entry
     simp[Trace.at?_eq_some, Trace.erase_at, ProofTrace.Entry.erase_eq_imp_exists, ErasableProofEntry.erase]
@@ -452,7 +457,8 @@ theorem receiveConfidential.proof
   step
   -- pure
   step
-  trivial
+  -- TODO: should follow from trace invariant?
+  sorry
 
 end Proof
 

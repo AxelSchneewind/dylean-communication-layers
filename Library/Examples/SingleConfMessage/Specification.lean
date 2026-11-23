@@ -174,6 +174,7 @@ public
 def send_message (sender receiver : Participant) (state_id:Nat) : Traceful Nat := do
   let st:single_message_state ← PersistentLocalState.getLocalState sender state_id
   guard (st.sender = sender)
+  guard (st.receiver = receiver)
   Communication.Confidential.sendConfidential sender receiver st.msg.payload
 
 public
