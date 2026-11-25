@@ -1,15 +1,27 @@
 module
 
-import Library.Examples.SingleAuthMessage.Printing
+import all Library.Examples.SingleAuthMessage.Printing
+public import Library.Examples.SingleAuthMessage.Printing
+
 import all Library.Examples.SingleAuthMessage.SanityChecks
 
-public def main : IO UInt32 := do
-  let (result, tr) := DY.Example.SingleAuthMessage.honestProtocolRun.run DY.Trace.empty
+open DY
+
+namespace DY.Example.SingleAuthMessage
+
+def do_print [ExecTraceTypes]
+  {α : Type} (run : Traceful α) (toString : ExecTrace → String) : IO Bool := do
   let stdout ← IO.getStdout
-  stdout.putStr (DY.Example.SingleAuthMessage.traceToStr tr.val)
-  if result == some () then
-    return 0
-  else
-    let stderr ← IO.getStderr
-    stderr.putStrLn "honestProtocolRun failed; stdout contains the trace up to failure."
-    return 1
+  let (result, tr) := run.run DY.Trace.empty
+  stdout.putStr (toString tr.val)
+  return result.isSome
+
+public
+def print_trace (selection: Option Nat) : IO Bool := do
+    let stderr ← IO.getStderr;
+    match selection with
+    | some 0 => do_print DY.Example.SingleAuthMessage.honestProtocolRun DY.Example.SingleAuthMessage.traceToStr
+    | some 1 => do_print DY.Example.SingleAuthMessage.compromisedProtocolRun DY.Example.SingleAuthMessage.traceToStr
+    | _ => stderr.putStrLn "no protocol run selected"; return false
+
+end DY.Example.SingleAuthMessage

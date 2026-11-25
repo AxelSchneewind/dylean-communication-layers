@@ -39,3 +39,38 @@ def entryPrinter [BytesFunctor] [DY.Printing.PayloadPrinter ExecEntryT] : DY.Pri
   fun p _i e => ⟨"Authenticated Send", [/-("SessionID", toJson i), -/("Principal", toJson (DY.Printing.PayloadPrinter.principal e)), ("Tag", toJson (DY.Printing.PayloadPrinter.tag (α := ExecEntryT))), ("Content", toJson (DY.Printing.payloadToString p e))]⟩
 
 end DY.Communication.Authenticated
+
+
+
+
+
+
+namespace DY.Communication.Confidential
+open _root_.Lean (toJson)
+
+namespace Compromise
+public
+instance [BytesFunctor] : DY.Printing.PayloadPrinter ExecEntryT where
+  tag := "Communication.Confidential.Compromise"
+  render _bytes _st := "communication was compromised"
+  principal st := match st with
+                  | ⟨ 0, {ev:={participant}} ⟩ => participant
+
+public
+def entryPrinter [BytesFunctor] [DY.Printing.PayloadPrinter ExecEntryT] : DY.Printing.EntryPrinter ExecEntryT :=
+  fun p _i e => ⟨"Compromise Event", [/-("SessionID", toJson i), -/("Principal", toJson (DY.Printing.PayloadPrinter.principal e)), ("Tag", toJson (DY.Printing.PayloadPrinter.tag (α := Compromise.ExecEntryT))), ("Content", toJson (DY.Printing.payloadToString p e))]⟩
+
+end Compromise
+
+
+public
+instance [BytesFunctor] : DY.Printing.PayloadPrinter ExecEntryT where
+  tag := "Communication.Confidential"
+  render bytes st := s!"sent {bytes st.payload} to {st.receiver}"
+  principal st := st.sender
+
+public
+def entryPrinter [BytesFunctor] [DY.Printing.PayloadPrinter ExecEntryT] : DY.Printing.EntryPrinter ExecEntryT :=
+  fun p _i e => ⟨"Confidential Send", [/-("SessionID", toJson i), -/("Principal", toJson (DY.Printing.PayloadPrinter.principal e)), ("Tag", toJson (DY.Printing.PayloadPrinter.tag (α := ExecEntryT))), ("Content", toJson (DY.Printing.payloadToString p e))]⟩
+
+end DY.Communication.Confidential
