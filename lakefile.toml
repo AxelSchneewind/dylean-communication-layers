@@ -19,8 +19,6 @@ name = "Library"
 [[lean_lib]]
 name = "DyleanExtensions"
 
-
-
 [[lean_exe]]
 name = "PrintTrace"
-root = "Library.Examples.SingleAuthMessage.PrintTrace"
+root = "Library.Examples.PrintTrace"
