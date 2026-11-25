@@ -300,6 +300,8 @@ theorem receive_message.proof
       hoist; step_intro
       step with ⟨ ⟩ by
         simp[ProtocolEvent.EventInv.invariant]
+        have : Communication.Confidential.CommunicationEventPredicates.confidential tr sender receiver msg_bytes := by grind
+        simp [Communication.Confidential.CommunicationEventPredicates.confidential] at this
         grind
       -- PersistentLocalState.storeLocalState
       hoist; step_intro
