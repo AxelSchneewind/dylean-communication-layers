@@ -86,20 +86,19 @@ end honest
 
 section compromised
 
--- TODO: how to add to initial attacker knowledge?
 def msg [Literal.CanMkLiteral Bytes] : Bytes := Literal.literalToBytes (ByteArray.mk (Array.mk [1,2]))
 
 def compromisedProtocolRun : Traceful Unit := do
   -- attacker prepares msg for bob
-  Library.Communication.Authenticated.compromiseParticipant alice
-  let j ← Library.Communication.Authenticated.sendAuthenticatedAttacker alice bob msg
+  Communication.Authenticated.compromiseParticipant alice
+  let j ← Communication.Authenticated.sendAuthenticatedAttacker alice bob msg
   let _ ← receive_message alice bob j
   return ()
 
 #guard (compromisedProtocolRun.run Trace.empty).fst = some ()
 
-def example_trace := (compromisedProtocolRun.run Trace.empty).snd.val
-#eval example_trace
+def compromisedProtocolRun_trace := (compromisedProtocolRun.run Trace.empty).snd.val
+#eval traceToStr compromisedProtocolRun_trace
 
 theorem compromisedProtocolRun_preservesReachability
   : compromisedProtocolRun.PreservesReachability reachability (fun _ => True) (fun _ _ => True)
@@ -108,19 +107,19 @@ theorem compromisedProtocolRun_preservesReachability
 
   intro tr reach pre
   apply Traceful.PreservesReachabilityFrom_bind
-  . apply Library.Communication.Authenticated.compromiseParticipant.preservesReachability
+  . apply Communication.Authenticated.compromiseParticipant.preservesReachability
   . assumption
   . assumption
 
   intro i tr post tr_inv le
 
-  have : Library.Communication.Authenticated.participantCompromised tr alice := by assumption
+  have : Communication.Authenticated.participantCompromised tr alice := by assumption
   have : msg.AttackerKnows tr := by apply Literal.attacker_knows_literalToBytes
   apply Traceful.PreservesReachabilityFrom_bind
-  . apply Traceful.PreservesReachability_base Library.Communication.Authenticated.sendAuthenticatedAttacker.reachability _ (alice, bob, msg)
+  . apply Traceful.PreservesReachability_base Communication.Authenticated.sendAuthenticatedAttacker.reachability _ (alice, bob, msg)
   . assumption
   . -- precondition proof
-    unfold Library.Communication.Authenticated.sendAuthenticatedAttacker.reachability
+    unfold Communication.Authenticated.sendAuthenticatedAttacker.reachability
     grind
 
   intro j tr post tr_inv le
@@ -145,7 +144,7 @@ theorem compromisedProtocolRun_properties:
     refine ⟨ ?_, ?_ ⟩
     . apply Traceful.PreservesReachability_to_Reachable compromisedProtocolRun_preservesReachability
       grind
-    simp only[Library.Communication.Authenticated.participantCompromisedAt, DY.Trace.EventLoggedAt_eq_getEventAt]
+    simp only[Communication.Authenticated.participantCompromisedAt, DY.Trace.EventLoggedAt_eq_getEventAt]
     refine ⟨ 0, 2, ?_, ?_ ⟩
     trivial
     native_decide

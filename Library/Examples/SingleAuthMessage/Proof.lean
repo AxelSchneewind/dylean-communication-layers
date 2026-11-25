@@ -1,7 +1,7 @@
 module
 
 import DY.Meta
-public import Library.Communication
+public import Library.Communication.Authenticated
 public import Library.Examples.SingleAuthMessage.Specification
 import all Library.Examples.SingleAuthMessage.Specification
 
@@ -15,8 +15,8 @@ public section ProofTraceConfig
 class HasProofTrace extends HasExecTrace where
   [traceProof: ProofTraceTypes]
   [traceProof0: ProofTraceTypes.Has Network.ProofEntryT]
-  [traceProof1: ProofTraceTypes.Has Library.Communication.Authenticated.ProofEntryT]
-  [traceProof2: ProofTraceTypes.Has Library.Communication.Authenticated.Compromise.ProofEntryT]
+  [traceProof1: ProofTraceTypes.Has Communication.Authenticated.ProofEntryT]
+  [traceProof2: ProofTraceTypes.Has Communication.Authenticated.Compromise.ProofEntryT]
   [traceProof3: ProofTraceTypes.Has Random.ProofEntryT]
   [traceProof4: ProofTraceTypes.Has (ProtocolEvent.ProofEntryT single_message_send_event)]
   [traceProof5: ProofTraceTypes.Has (ProtocolEvent.ProofEntryT single_message_receive_event)]
@@ -78,10 +78,10 @@ instance single_message_state.Invariant : PersistentLocalState.CompromisableLoca
         Comparse.IsWellFormed Bytes.Publishable st tr ∧
         (
           tr.erase.EventLogged ({ sender:=st.sender, msg:=st.msg } : single_message_send_event)
-          ∨ Library.Communication.Authenticated.participantCompromised tr.erase st.sender
+          ∨ Communication.Authenticated.participantCompromised tr.erase st.sender
         )
     invariant_later := by
-      grind[Bytes.Publishable_later_fast, Trace.EventLogged_le, Library.Communication.Authenticated.participantCompromised_le]
+      grind[Bytes.Publishable_later_fast, Trace.EventLogged_le, Communication.Authenticated.participantCompromised_le]
     invariant_implies_KnowableBy me st tr := by
       intro inv
       simp [single_message_state.IsWellFormed_eq]
@@ -124,7 +124,7 @@ where
     Bytes.Publishable ev.msg.payload tr
     ∧ (
       tr.erase.EventLogged ({ sender:=ev.sender, msg:=ev.msg } : single_message_send_event )
-      ∨ Library.Communication.Authenticated.participantCompromised tr.erase ev.sender
+      ∨ Communication.Authenticated.participantCompromised tr.erase ev.sender
     )
 
 -- for monotonicity (needed?)
@@ -138,13 +138,13 @@ theorem single_message_receive_event_inv_imp_Invariant
 grind_pattern [grind_later] single_message_receive_event_inv_imp_Invariant => ProtocolEvent.EventInv.invariant tr st
 
 instance
-  : Library.Communication.Authenticated.CommunicationEventPredicates where
+  : Communication.Authenticated.CommunicationEventPredicates where
   authenticated tr sender receiver bytes :=
     Trace.EventLogged ({sender, msg:={payload:=bytes}} : single_message_send_event) tr.erase
-    ∨ Library.Communication.Authenticated.participantCompromised tr.erase sender
+    ∨ Communication.Authenticated.participantCompromised tr.erase sender
   -- TODO: check if needed
   authenticated_later := by
-    grind[Library.Communication.Authenticated.participantCompromised_le, Trace.EventLogged_le, Library.Communication.Authenticated.authenticatedMessageSentAt_le, Library.Communication.Authenticated.participantCompromised_le]
+    grind[Communication.Authenticated.participantCompromised_le, Trace.EventLogged_le, Communication.Authenticated.authenticatedMessageSentAt_le, Communication.Authenticated.participantCompromised_le]
 
 end TraceInvariant
 
@@ -154,13 +154,13 @@ public section TraceInvariantConfig
 class HasTraceInvariant extends HasBytesInvariants where
   [traceInv: TraceInvariant]
   [traceInv0: TraceInvariant.Has Network.ProofEntryT]
-  [traceInv1: TraceInvariant.Has Library.Communication.Authenticated.ProofEntryT]
-  [traceInv2: TraceInvariant.Has Library.Communication.Authenticated.Compromise.ProofEntryT]
+  [traceInv1: TraceInvariant.Has Communication.Authenticated.ProofEntryT]
+  [traceInv2: TraceInvariant.Has Communication.Authenticated.Compromise.ProofEntryT]
   [traceInv3: TraceInvariant.Has Random.ProofEntryT]
   [traceInv4: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_send_event)]
   [traceInv5: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_receive_event)]
   [traceInv6: TraceInvariant.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
-  -- [higher_level_preds: Library.Communication.Authenticated.CommunicationEventPredicates]
+  -- [higher_level_preds: Communication.Authenticated.CommunicationEventPredicates]
   [attBaseThm: BaseAttackerKnowledgeTheorem]
   [attThm: AttackerKnowledgeTheorem]
 
@@ -218,19 +218,19 @@ theorem send_message.proof (sender receiver: Participant) (state_id: Nat)
     step
     -- guard
     step with ⟨ ⟩
-    -- Library.CommunicationsendAuthenticated
+    -- CommunicationsendAuthenticated
     hoist; step_intro
-    have : msg.Publishable tr ∧ Library.Communication.Authenticated.CommunicationEventPredicates.authenticated tr sender receiver msg := by
+    have : msg.Publishable tr ∧ Communication.Authenticated.CommunicationEventPredicates.authenticated tr sender receiver msg := by
       have st_inv : single_message_state.Invariant.invariant sender st tr := by assumption
       simp[PersistentLocalState.LocalStateInv.invariant] at st_inv
       have : Trace.EventLogged ({sender:=st.sender, msg:=st.msg} : single_message_send_event) tr.erase
-             ∨ Library.Communication.Authenticated.participantCompromised tr.erase st.sender := by
+             ∨ Communication.Authenticated.participantCompromised tr.erase st.sender := by
         grind
-      have hl_inv : Library.Communication.Authenticated.CommunicationEventPredicates.authenticated tr sender receiver st.msg.payload := by
-        simp[Library.Communication.Authenticated.CommunicationEventPredicates.authenticated]
+      have hl_inv : Communication.Authenticated.CommunicationEventPredicates.authenticated tr sender receiver st.msg.payload := by
+        simp[Communication.Authenticated.CommunicationEventPredicates.authenticated]
         subst sender
         exact this
-      simp [Library.Communication.Authenticated.CommunicationEventPredicates.authenticated] at hl_inv
+      simp [Communication.Authenticated.CommunicationEventPredicates.authenticated] at hl_inv
       constructor
       . grind
       . exact hl_inv
@@ -247,7 +247,7 @@ theorem receive_message.proof
   := by
       apply HoareTriple.mk
       unfold receive_message
-      -- Library.CommunicationreceiveAuthenticated
+      -- CommunicationreceiveAuthenticated
       step with ⟨ ⟩
       -- TODO: use other tactic to get postcondition
       rename_i receiveAuthenticatedPost
@@ -263,13 +263,13 @@ theorem receive_message.proof
           cases receiveAuthenticatedPost
           . -- TODO: get receiver' without explitly getting proposition
             have sent__ : (∃ receiver',
-                Library.Communication.Authenticated.authenticatedMessageSentAt tr.erase sender receiver' msg_bytes msg_id) := by grind
+                Communication.Authenticated.authenticatedMessageSentAt tr.erase sender receiver' msg_bytes msg_id) := by grind
             obtain ⟨ receiver', sent ⟩ := sent__
             -- ExecEntryT invariant implies event existence
-            have auth_sent_imp_send_event := Library.Communication.Authenticated.authenticatedMessageSentAt_imp_higher_layer_invariants sender receiver' msg_bytes msg_id tr h
+            have auth_sent_imp_send_event := Communication.Authenticated.authenticatedMessageSentAt_imp_higher_layer_invariants sender receiver' msg_bytes msg_id tr h
             let inv := auth_sent_imp_send_event (by grind)
-            simp[Library.Communication.Authenticated.CommunicationEventPredicates.authenticated] at inv
-            grind[Trace.EventLogged_le, Library.Communication.Authenticated.participantCompromised_le]
+            simp[Communication.Authenticated.CommunicationEventPredicates.authenticated] at inv
+            grind[Trace.EventLogged_le, Communication.Authenticated.participantCompromised_le]
           . grind
       -- PersistentLocalState.storeLocalState
       hoist; step_intro
@@ -278,7 +278,7 @@ theorem receive_message.proof
         rename_i h_r
         let recv_event_inv := Trace.EventLogged_imp_EventInv ev tr h h_r
         simp[ProtocolEvent.EventInv.invariant] at recv_event_inv
-        grind[Trace.EventLogged_le, Library.Communication.Authenticated.participantCompromised_le]
+        grind[Trace.EventLogged_le, Communication.Authenticated.participantCompromised_le]
       step with ⟨ ⟩ by grind
       grind
 
@@ -301,7 +301,7 @@ end
 
 #combine into ReachabilityTheorem from
   Network,
-  Library.Communication.Authenticated,
+  Communication.Authenticated,
   prepare_message,
   send_message,
   receive_message,

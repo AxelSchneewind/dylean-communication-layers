@@ -20,8 +20,8 @@ instance: HasExecBytes where
   baseAttackerKnowledge,
 from
   Network,
-  Library.Communication.Authenticated,
-  Library.Communication.Authenticated.Compromise,
+  Communication.Authenticated,
+  Communication.Authenticated.Compromise,
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
@@ -75,8 +75,8 @@ instance : HasRepr where
   ProofEntryT,
 from
   Network,
-  Library.Communication.Authenticated,
-  Library.Communication.Authenticated.Compromise,
+  Communication.Authenticated,
+  Communication.Authenticated.Compromise,
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
@@ -96,8 +96,8 @@ instance: HasBytesInvariants where
   SubBaseAttackerKnowledgeTheorem,
 from
   Network,
-  Library.Communication.Authenticated,
-  Library.Communication.Authenticated.Compromise,
+  Communication.Authenticated,
+  Communication.Authenticated.Compromise,
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,

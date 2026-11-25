@@ -7,7 +7,7 @@ import DY.Meta.Step
 
 public import DyleanExtensions
 
-namespace DY.Library.Communication.Authenticated
+namespace DY.Communication.Authenticated
 
 variable [BytesFunctor]
 
@@ -21,11 +21,9 @@ structure CommunicationCompromiseEvent where
   participant: Participant
   deriving DecidableEq
 
-public
-instance : Repr CommunicationCompromiseEvent where
-  reprPrec e _ := "compromised: " ++ e.participant
-
 #combine into ExecEntryT, baseAttackerKnowledge from ProtocolEvent CommunicationCompromiseEvent
+
+#check ProtocolEvent.ExecEntryT CommunicationCompromiseEvent
 
 end Compromise
 
@@ -567,4 +565,4 @@ end
 
 end Reachability
 
-end DY.Library.Communication.Authenticated
+end DY.Communication.Authenticated

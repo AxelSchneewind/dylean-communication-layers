@@ -136,8 +136,8 @@ public
 class HasExecTrace extends HasExecBytes where
   [traceExec: ExecTraceTypes]
   [traceExec0: ExecTraceTypes.Has Network.ExecEntryT]
-  [traceExec1: ExecTraceTypes.Has Library.Communication.Authenticated.ExecEntryT]
-  [traceExec2: ExecTraceTypes.Has Library.Communication.Authenticated.Compromise.ExecEntryT]
+  [traceExec1: ExecTraceTypes.Has Communication.Authenticated.ExecEntryT]
+  [traceExec2: ExecTraceTypes.Has Communication.Authenticated.Compromise.ExecEntryT]
   [traceExec3: ExecTraceTypes.Has Random.ExecEntryT]
   [traceExec4: ExecTraceTypes.Has (ProtocolEvent.ExecEntryT single_message_send_event)]
   [traceExec5: ExecTraceTypes.Has (ProtocolEvent.ExecEntryT single_message_receive_event)]
@@ -172,11 +172,11 @@ public
 def send_message (sender receiver : Participant) (state_id:Nat) : Traceful Nat := do
   let st:single_message_state ← PersistentLocalState.getLocalState sender state_id
   guard (st.sender = sender)
-  Library.Communication.Authenticated.sendAuthenticated sender receiver st.msg.payload
+  Communication.Authenticated.sendAuthenticated sender receiver st.msg.payload
 
 public
 def receive_message (sender receiver : Participant) (msg_id : Nat) : Traceful Nat := do
-  let msg_bytes ← Library.Communication.Authenticated.receiveAuthenticated sender msg_id
+  let msg_bytes ← Communication.Authenticated.receiveAuthenticated sender msg_id
   let msg : single_message := {payload:=msg_bytes}
   ProtocolEvent.logEvent ({sender, receiver, msg} : single_message_receive_event )
   let state_id ← PersistentLocalState.storeLocalState receiver ({sender, msg} : single_message_state)
@@ -197,7 +197,7 @@ end
 
 #combine into ReachabilityConfig from
   Network,
-  Library.Communication.Authenticated,
+  Communication.Authenticated,
   prepare_message,
   send_message,
   receive_message,
