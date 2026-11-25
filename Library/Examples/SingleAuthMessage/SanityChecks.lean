@@ -29,7 +29,7 @@ def honestProtocolRun: Traceful Unit := do
 #guard (honestProtocolRun.run Trace.empty).fst = some ()
 
 def honestProtocolRun_trace := (honestProtocolRun.run Trace.empty).snd.val
-#eval honestProtocolRun_trace
+#eval traceToStr honestProtocolRun_trace
 
 theorem honestProtocolRun_preservesReachability
   : honestProtocolRun.PreservesReachability reachability (fun _ => True) (fun _ _ => True)
