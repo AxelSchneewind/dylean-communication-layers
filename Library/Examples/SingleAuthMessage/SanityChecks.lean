@@ -7,8 +7,8 @@ public import Library.Examples.SingleAuthMessage.SecurityTheorems
 import Library.Examples.SingleAuthMessage.Instance
 public meta import Library.Examples.SingleAuthMessage.Instance
 
--- for formatting
-public import Init.Data.Format.Basic
+public meta import Library.Examples.SingleAuthMessage.Printing
+import Library.Examples.SingleAuthMessage.Printing
 
 public import Library.Communication
 
@@ -86,7 +86,7 @@ end honest
 
 section compromised
 
-def msg [Literal.CanMkLiteral Bytes] : Bytes := Literal.literalToBytes (ByteArray.mk (Array.mk [1,2]))
+def msg : Bytes := Literal.literalToBytes (ByteArray.mk (Array.mk [1,2]))
 
 def compromisedProtocolRun : Traceful Unit := do
   -- attacker prepares msg for bob
@@ -138,7 +138,7 @@ theorem compromisedProtocolRun_properties:
   tr.Reachable reachability ∧
   ∃ (tr1 tr2 : Nat),
   tr1 ≤ tr2
-  ∧ Library.Communication.Authenticated.participantCompromisedAt tr alice tr1
+  ∧ Communication.Authenticated.participantCompromisedAt tr alice tr1
   ∧ tr.EventLoggedAt (single_message_receive_event.mk alice bob {payload:=msg}) tr2 := by
     intro tr
     refine ⟨ ?_, ?_ ⟩
