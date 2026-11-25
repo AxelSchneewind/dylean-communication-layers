@@ -175,7 +175,7 @@ theorem single_message_receive_event_inv_imp_Invariant
 grind_pattern [grind_later] single_message_receive_event_inv_imp_Invariant => ProtocolEvent.EventInv.invariant tr st
 
 instance
-  : Communication.Confidential.CommunicationEventPredicates where
+  : Communication.Confidential.CommunicationInvariants where
   confidential tr sender receiver bytes :=
     -- (
       bytes.Invariant tr ∧ bytes.WellFormed tr ∧
@@ -201,7 +201,7 @@ class HasTraceInvariant extends HasBytesInvariants where
   [traceInv4: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_send_event)]
   [traceInv5: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_receive_event)]
   [traceInv6: TraceInvariant.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
-  -- [higher_level_preds: Communication.Confidential.CommunicationEventPredicates]
+  -- [higher_level_preds: Communication.Confidential.CommunicationInvariants]
   [attBaseThm: BaseAttackerKnowledgeTheorem]
   [attThm: AttackerKnowledgeTheorem]
 
@@ -269,14 +269,14 @@ theorem send_message.proof (sender receiver: Participant) (state_id: Nat)
       grind[single_message, single_message_state]
     have : msg.Invariant tr
       ∧ (msg.label tr) = (single_message_label sender receiver {payload:=msg})
-      ∧ Communication.Confidential.CommunicationEventPredicates.confidential tr sender receiver msg := by
+      ∧ Communication.Confidential.CommunicationInvariants.confidential tr sender receiver msg := by
       have st_inv : single_message_state.Invariant.invariant sender st tr := by assumption
       simp[PersistentLocalState.LocalStateInv.invariant] at st_inv
       refine ⟨ ?_, ?_, ?_ ⟩
       . grind
       . grind
       . -- does not work with grind only?
-        simp[Communication.Confidential.CommunicationEventPredicates.confidential]
+        simp[Communication.Confidential.CommunicationInvariants.confidential]
         grind
     step with ⟨ ⟩ by grind[single_message_label]
     trivial
@@ -300,8 +300,8 @@ theorem receive_message.proof
       hoist; step_intro
       step with ⟨ ⟩ by
         simp[ProtocolEvent.EventInv.invariant]
-        have : Communication.Confidential.CommunicationEventPredicates.confidential tr sender receiver msg_bytes := by grind
-        simp [Communication.Confidential.CommunicationEventPredicates.confidential] at this
+        have : Communication.Confidential.CommunicationInvariants.confidential tr sender receiver msg_bytes := by grind
+        simp [Communication.Confidential.CommunicationInvariants.confidential] at this
         grind
       -- PersistentLocalState.storeLocalState
       hoist; step_intro

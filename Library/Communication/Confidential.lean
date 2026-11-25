@@ -231,15 +231,15 @@ instance: ExecEntryAssociatedWithProofEntry ExecEntryT ProofEntryT where
 
 
 public
-class CommunicationEventPredicates [BytesFunctor] [ExecTraceTypes] [ProofTraceTypes] where
+class CommunicationInvariants [BytesFunctor] [ExecTraceTypes] [ProofTraceTypes] where
   confidential : ProofTrace → Participant → Participant → Bytes → Prop
 
   confidential_later : ∀ tr1 tr2 sender receiver payload,
     tr1 ≤ tr2 → confidential tr1 sender receiver payload →
     confidential tr2 sender receiver payload
 
-grind_pattern [grind_later] CommunicationEventPredicates.confidential_later =>
-tr1 ≤ tr2, CommunicationEventPredicates.confidential tr1 sender receiver payload
+grind_pattern [grind_later] CommunicationInvariants.confidential_later =>
+tr1 ≤ tr2, CommunicationInvariants.confidential tr1 sender receiver payload
 
 
 public
@@ -256,12 +256,12 @@ public
 instance
   [ExecTraceTypes] [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes] [BytesInvariants]
-  [CommunicationEventPredicates]
+  [CommunicationInvariants]
   : SubTraceInvariant ProofEntryT
 where
   invariant tr entry := (entry.payload.label tr).canFlow (CommunicationLabel entry.receiver) tr.erase
     ∧ entry.payload.Invariant tr
-    ∧ ((CommunicationEventPredicates.confidential tr entry.sender entry.receiver entry.payload)
+    ∧ ((CommunicationInvariants.confidential tr entry.sender entry.receiver entry.payload)
       -- TODO: allow transfer of publishable messages. Then invariant does not hold.
       -- this has to be handled here in order for attacker send function to work.
       ∨ entry.payload.Publishable tr
@@ -270,7 +270,7 @@ where
 -- public
 -- theorem confidentialMessageSentAt_imp_higher_layer_invariants
 --   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant] [BytesInvariants]
---   [CommunicationEventPredicates]
+--   [CommunicationInvariants]
 --   [ExecTraceTypes.Has Compromise.ExecEntryT] [ProofTraceTypes.Has Compromise.ProofEntryT] [TraceInvariant.Has Compromise.ProofEntryT]
 --   [ExecTraceTypes.Has ExecEntryT] [ProofTraceTypes.Has ProofEntryT] [TraceInvariant.Has ProofEntryT]
 --   (sender receiver: Participant) (bytes: Bytes)
@@ -278,7 +278,7 @@ where
 --   (tr: ProofTrace)
 --   : tr.Invariant →
 --     confidentialMessageSentAt tr.erase sender receiver bytes i →
---     (CommunicationEventPredicates.confidential (tr.prefix i) sender receiver bytes ∨ participantCompromised (tr.erase.prefix i) sender)
+--     (CommunicationInvariants.confidential (tr.prefix i) sender receiver bytes ∨ participantCompromised (tr.erase.prefix i) sender)
 -- := by
 --   intro h_inv h_ev
 --   have := Trace.invariant_at tr i (by grind [confidentialMessageSentAt]) h_inv
@@ -295,7 +295,7 @@ where
 public
 instance baseAttackerKnowledgeTheorem
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant] [BytesInvariants]
-  [CommunicationEventPredicates]
+  [CommunicationInvariants]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has Compromise.ProofEntryT]
   [TraceInvariant.Has Compromise.ProofEntryT]
@@ -326,7 +326,7 @@ where
 theorem compromiseParticipant.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
-  [CommunicationEventPredicates]
+  [CommunicationInvariants]
   [ExecTraceTypes.Has ExecEntryT]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
@@ -346,7 +346,7 @@ public
 theorem sendConfidentialAttacker.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
-  [CommunicationEventPredicates]
+  [CommunicationInvariants]
   [ExecTraceTypes.Has ExecEntryT]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
@@ -383,7 +383,7 @@ public
 theorem sendConfidential.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
-  [CommunicationEventPredicates]
+  [CommunicationInvariants]
   [ExecTraceTypes.Has ExecEntryT]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
@@ -397,7 +397,7 @@ theorem sendConfidential.proof
     (fun tr => msg.Invariant tr
       -- has to be ensured by higher layer, mainly concerning message label
       ∧ (msg.label tr).canFlow (CommunicationLabel receiver) tr.erase
-      ∧ CommunicationEventPredicates.confidential tr sender receiver msg)
+      ∧ CommunicationInvariants.confidential tr sender receiver msg)
     (fun i tr => confidentialMessageSentAt tr.erase sender receiver msg i)
 := by
   apply HoareTriple.mk
@@ -421,7 +421,7 @@ public
 theorem receiveConfidential.proof
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
-  [CommunicationEventPredicates]
+  [CommunicationInvariants]
   [ExecTraceTypes.Has ExecEntryT]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]
@@ -434,7 +434,7 @@ theorem receiveConfidential.proof
     (receiveConfidential sender receiver handle)
     (fun _ => True)
     -- TODO: ensure predicate here?
-    (fun msg tr => CommunicationEventPredicates.confidential tr sender receiver msg)
+    (fun msg tr => CommunicationInvariants.confidential tr sender receiver msg)
 := by
   apply HoareTriple.mk
   unfold receiveConfidential
@@ -494,7 +494,7 @@ end
 variable
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
-  [CommunicationEventPredicates]
+  [CommunicationInvariants]
   [ExecTraceTypes.Has ExecEntryT] [ ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT] [ProofTraceTypes.Has Compromise.ProofEntryT]
   [TraceInvariant.Has ProofEntryT]  [TraceInvariant.Has Compromise.ProofEntryT]
@@ -538,7 +538,7 @@ public instance: ReachabilityConfig.HasStep sendConfidentialAttacker.reachabilit
 variable
   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant]
   [BytesInvariants] [BytesInvariantsProofs]
-  [CommunicationEventPredicates]
+  [CommunicationInvariants]
   [ExecTraceTypes.Has ExecEntryT]
   [ExecTraceTypes.Has Compromise.ExecEntryT]
   [ProofTraceTypes.Has ProofEntryT]

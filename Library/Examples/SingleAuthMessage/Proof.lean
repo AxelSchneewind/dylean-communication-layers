@@ -138,7 +138,7 @@ theorem single_message_receive_event_inv_imp_Invariant
 grind_pattern [grind_later] single_message_receive_event_inv_imp_Invariant => ProtocolEvent.EventInv.invariant tr st
 
 instance
-  : Communication.Authenticated.CommunicationEventPredicates where
+  : Communication.Authenticated.CommunicationInvariants where
   authenticated tr sender receiver bytes :=
     Trace.EventLogged ({sender, msg:={payload:=bytes}} : single_message_send_event) tr.erase
     ∨ Communication.Authenticated.participantCompromised tr.erase sender
@@ -160,7 +160,7 @@ class HasTraceInvariant extends HasBytesInvariants where
   [traceInv4: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_send_event)]
   [traceInv5: TraceInvariant.Has (ProtocolEvent.ProofEntryT single_message_receive_event)]
   [traceInv6: TraceInvariant.Has (PersistentLocalState.CompromisableState.ProofEntryT single_message_state)]
-  -- [higher_level_preds: Communication.Authenticated.CommunicationEventPredicates]
+  -- [higher_level_preds: Communication.Authenticated.CommunicationInvariants]
   [attBaseThm: BaseAttackerKnowledgeTheorem]
   [attThm: AttackerKnowledgeTheorem]
 
@@ -220,17 +220,17 @@ theorem send_message.proof (sender receiver: Participant) (state_id: Nat)
     step with ⟨ ⟩
     -- CommunicationsendAuthenticated
     hoist; step_intro
-    have : msg.Publishable tr ∧ Communication.Authenticated.CommunicationEventPredicates.authenticated tr sender receiver msg := by
+    have : msg.Publishable tr ∧ Communication.Authenticated.CommunicationInvariants.authenticated tr sender receiver msg := by
       have st_inv : single_message_state.Invariant.invariant sender st tr := by assumption
       simp[PersistentLocalState.LocalStateInv.invariant] at st_inv
       have : Trace.EventLogged ({sender:=st.sender, msg:=st.msg} : single_message_send_event) tr.erase
              ∨ Communication.Authenticated.participantCompromised tr.erase st.sender := by
         grind
-      have hl_inv : Communication.Authenticated.CommunicationEventPredicates.authenticated tr sender receiver st.msg.payload := by
-        simp[Communication.Authenticated.CommunicationEventPredicates.authenticated]
+      have hl_inv : Communication.Authenticated.CommunicationInvariants.authenticated tr sender receiver st.msg.payload := by
+        simp[Communication.Authenticated.CommunicationInvariants.authenticated]
         subst sender
         exact this
-      simp [Communication.Authenticated.CommunicationEventPredicates.authenticated] at hl_inv
+      simp [Communication.Authenticated.CommunicationInvariants.authenticated] at hl_inv
       constructor
       . grind
       . exact hl_inv
@@ -268,7 +268,7 @@ theorem receive_message.proof
             -- ExecEntryT invariant implies event existence
             have auth_sent_imp_send_event := Communication.Authenticated.authenticatedMessageSentAt_imp_higher_layer_invariants sender receiver' msg_bytes msg_id tr h
             let inv := auth_sent_imp_send_event (by grind)
-            simp[Communication.Authenticated.CommunicationEventPredicates.authenticated] at inv
+            simp[Communication.Authenticated.CommunicationInvariants.authenticated] at inv
             grind[Trace.EventLogged_le, Communication.Authenticated.participantCompromised_le]
           . grind
       -- PersistentLocalState.storeLocalState
