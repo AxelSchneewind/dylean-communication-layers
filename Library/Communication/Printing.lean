@@ -23,7 +23,7 @@ instance [BytesFunctor] : DY.Printing.PayloadPrinter ExecEntryT where
 
 public
 def entryPrinter [BytesFunctor] [DY.Printing.PayloadPrinter ExecEntryT] : DY.Printing.EntryPrinter ExecEntryT :=
-  fun p i e => ⟨"Compromise Event", [/-("SessionID", toJson i), -/("Principal", toJson (DY.Printing.PayloadPrinter.principal e)), ("Tag", toJson (DY.Printing.PayloadPrinter.tag (α := Compromise.ExecEntryT))), ("Content", toJson (DY.Printing.payloadToString p e))]⟩
+  fun p _i e => ⟨"Compromise Event", [/-("SessionID", toJson i), -/("Principal", toJson (DY.Printing.PayloadPrinter.principal e)), ("Tag", toJson (DY.Printing.PayloadPrinter.tag (α := Compromise.ExecEntryT))), ("Content", toJson (DY.Printing.payloadToString p e))]⟩
 
 end Compromise
 
@@ -36,6 +36,6 @@ instance [BytesFunctor] : DY.Printing.PayloadPrinter ExecEntryT where
 
 public
 def entryPrinter [BytesFunctor] [DY.Printing.PayloadPrinter ExecEntryT] : DY.Printing.EntryPrinter ExecEntryT :=
-  fun p i e => ⟨"Authenticated Send", [/-("SessionID", toJson i), -/("Principal", toJson (DY.Printing.PayloadPrinter.principal e)), ("Tag", toJson (DY.Printing.PayloadPrinter.tag (α := ExecEntryT))), ("Content", toJson (DY.Printing.payloadToString p e))]⟩
+  fun p _i e => ⟨"Authenticated Send", [/-("SessionID", toJson i), -/("Principal", toJson (DY.Printing.PayloadPrinter.principal e)), ("Tag", toJson (DY.Printing.PayloadPrinter.tag (α := ExecEntryT))), ("Content", toJson (DY.Printing.payloadToString p e))]⟩
 
 end DY.Communication.Authenticated
