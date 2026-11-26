@@ -15,7 +15,6 @@ section Execution
 
 namespace Compromise
 
--- TODO: adjust identifier
 public
 structure CommunicationCompromiseEvent where
   participant: Participant
@@ -26,6 +25,30 @@ structure CommunicationCompromiseEvent where
 #check ProtocolEvent.ExecEntryT CommunicationCompromiseEvent
 
 end Compromise
+
+section compromise
+
+variable [ExecTraceTypes] [ExecTraceTypes.Has Compromise.ExecEntryT]
+
+public
+def compromiseParticipant
+  (participant : Participant): Traceful Unit := do
+  ProtocolEvent.logEvent (Compromise.CommunicationCompromiseEvent.mk participant)
+
+@[expose]
+public
+def participantCompromisedAt
+  (tr : ExecTrace) (participant : Participant) (i : Nat) : Prop
+    := tr.EventLoggedAt (Compromise.CommunicationCompromiseEvent.mk participant) i
+
+public
+def participantCompromised
+  (tr : ExecTrace) (participant : Participant) : Prop
+    := ∃i, participantCompromisedAt tr participant i
+
+end compromise
+
+
 
 public
 structure ExecEntryT where
@@ -38,70 +61,51 @@ instance [Repr Bytes] : Repr ExecEntryT where
   reprPrec e _ := "communication: " ++ (repr e.payload) ++ " (" ++ e.sender ++ " → " ++ e.receiver ++ ")"
 
 
--- constructors
-@[simp, grind]
-public
-def ExecEntryT.Authenticated (sender receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender, receiver}
-
 public
 def baseAttackerKnowledge [ExecTraceTypes]: SubBaseAttackerKnowledge ExecEntryT where
   attackerKnows _ entry msg := entry.payload = msg -- ∧ ¬entry.is_Confidential ∨ (participantCompromised receiver)
 
 
-public
-def compromiseParticipant
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has Compromise.ExecEntryT]
-  (participant : Participant): Traceful Unit := do
-  ProtocolEvent.logEvent (Compromise.CommunicationCompromiseEvent.mk participant)
+variable [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
 
 public
 def sendAuthenticatedAttacker
-  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
   (sender receiver : Participant) (msg: Bytes): Traceful Nat :=
   do
-  let entry: ExecEntryT := ExecEntryT.Authenticated sender receiver msg
+  let entry: ExecEntryT := {sender, receiver, payload:=msg}
   appendEntry entry
 
 public
 def sendAuthenticated
-  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
   (sender receiver : Participant) (msg: Bytes): Traceful Nat :=
   do
-  let entry: ExecEntryT := ExecEntryT.Authenticated sender receiver msg
+  let entry: ExecEntryT := {sender, receiver, payload:=msg}
   appendEntry entry
 
 public
 def receiveAuthenticated
-  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
   (sender : Participant) (handle: Nat): Traceful Bytes :=
   do
   let entry: ExecEntryT ← getEntryExtended handle
   guard (entry.sender = sender)
   return entry.payload
 
+
+
 -- definitions like MessageSentAt from Network.lean
+@[expose]
 public
-def authenticatedMessageSentAt
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has ExecEntryT]
-  (tr : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat) :=
-      tr.at? i = some (ExecEntryT.mk bytes sender receiver)
+def authenticatedMessageSentAt (tr : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat) :=
+  tr.at? i = some (ExecEntryT.mk bytes sender receiver)
 
 @[expose, simp]
 public
-def authenticatedMessageSent
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has ExecEntryT]
-  (tr : ExecTrace) (sender receiver : Participant) (bytes : Bytes) :=
-      exists i, authenticatedMessageSentAt tr sender receiver bytes i
+def authenticatedMessageSent (tr : ExecTrace) (sender receiver : Participant) (bytes : Bytes) :=
+  exists i, authenticatedMessageSentAt tr sender receiver bytes i
 
 public
-theorem authenticatedMessageSentAt_le
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has ExecEntryT]
-  (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat) :
-    tr1 ≤ tr2
+theorem authenticatedMessageSentAt_le (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat)
+  : tr1 ≤ tr2
     → authenticatedMessageSentAt tr1 sender receiver bytes i
     → authenticatedMessageSentAt tr2 sender receiver bytes i
   := by
@@ -112,15 +116,12 @@ grind_pattern [grind_later] authenticatedMessageSentAt_le =>
 tr1 ≤ tr2, authenticatedMessageSentAt tr1 sender receiver bytes i
 
 public
-theorem authenticatedMessageSentAt_le'
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has ExecEntryT]
-  (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat)
-    : tr1 ≤ tr2
+theorem authenticatedMessageSentAt_le' (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat)
+  : tr1 ≤ tr2
     → authenticatedMessageSentAt tr2 sender receiver bytes i
     → i < tr1.length
     → authenticatedMessageSentAt tr1 sender receiver bytes i
-    := by
+  := by
       unfold authenticatedMessageSentAt
       grind[Trace.at?_eq_some]
 
@@ -128,59 +129,36 @@ grind_pattern [grind_later] authenticatedMessageSentAt_le' =>
 tr1 ≤ tr2, i < tr1.length, authenticatedMessageSentAt tr1 sender receiver bytes i
 
 public
-theorem authenticatedMessageSent_le
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has ExecEntryT]
-  (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) :
-    tr1 ≤ tr2
+theorem authenticatedMessageSent_le (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes)
+  : tr1 ≤ tr2
     → authenticatedMessageSent tr1 sender receiver bytes
     → authenticatedMessageSent tr2 sender receiver bytes
   := by
     unfold authenticatedMessageSent
-    intro le sent1
-    let later := authenticatedMessageSentAt_le tr1 tr2 sender receiver bytes
-    grind
+    have := authenticatedMessageSentAt_le tr1 tr2 sender receiver bytes
+    grind[authenticatedMessageSentAt_le]
 
 grind_pattern [grind_later] authenticatedMessageSent_le =>
 tr1 ≤ tr2, authenticatedMessageSent tr1 sender receiver bytes
 
-
-@[expose]
-public
-def participantCompromisedAt
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has Compromise.ExecEntryT]
-  (tr : ExecTrace) (participant : Participant) (i : Nat) : Prop
-    := tr.EventLoggedAt (Compromise.CommunicationCompromiseEvent.mk participant) i
-
-@[expose]
-public
-def participantCompromised
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has Compromise.ExecEntryT]
-  (tr : ExecTrace) (participant : Participant) : Prop
-    := ∃i, participantCompromisedAt tr participant i
-
+variable [ExecTraceTypes.Has Compromise.ExecEntryT]
 omit [BytesFunctor]
+
 public
 theorem participantCompromisedAt_le
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has Compromise.ExecEntryT]
-  (tr1 tr2 : ExecTrace) (participant : Participant) (i : Nat) :
-    tr1 ≤ tr2 → participantCompromisedAt tr1 participant i → participantCompromisedAt tr2 participant i
-    := by
-      unfold participantCompromisedAt
-      grind
+    (tr1 tr2 : ExecTrace) (participant : Participant) (i : Nat)
+  : tr1 ≤ tr2
+    → participantCompromisedAt tr1 participant i → participantCompromisedAt tr2 participant i
+  := by
+    unfold participantCompromisedAt
+    grind
 
 grind_pattern [grind_later] participantCompromisedAt_le =>
 tr1 ≤ tr2, participantCompromisedAt tr1 participant i
 
 
-omit [BytesFunctor]
 public
 theorem participantCompromised_le
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has Compromise.ExecEntryT]
   (tr1 tr2 : ExecTrace) (participant : Participant) :
     tr1 ≤ tr2 → participantCompromised tr1 participant → participantCompromised tr2 participant
     := by
@@ -190,6 +168,8 @@ theorem participantCompromised_le
 
 grind_pattern [grind_later] participantCompromised_le =>
 tr1 ≤ tr2, participantCompromised tr1 participant
+
+
 
 
 end Execution
