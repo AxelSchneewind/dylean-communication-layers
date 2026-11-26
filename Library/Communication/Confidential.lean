@@ -478,8 +478,8 @@ omit [BytesFunctor]
 public
 theorem compromiseParticipant.preservesReachability
   (config : ReachabilityConfig)
-  (alice : Participant)
-  : (compromiseParticipant alice).PreservesReachability config (fun _x => True) (fun _out tr => participantCompromised tr alice) := by
+  (participant : Participant)
+  : (compromiseParticipant participant).PreservesReachability config (fun _x => True) (fun _ tr => participantCompromised tr participant) := by
   dsimp only [compromiseParticipant, Traceful.PreservesReachability]
   intro tr h_reach h_pre
   simp[participantCompromised, participantCompromisedAt]
