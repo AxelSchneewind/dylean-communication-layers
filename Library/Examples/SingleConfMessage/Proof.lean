@@ -66,38 +66,29 @@ variable [HasBytesInvariants]
 
 section Labels
 
+variable
+  [ExecTraceTypes]
+
 public
 def single_message_send_state_label
-  [ExecTraceTypes]
   [ExecTraceTypes.Has (PersistentLocalState.Compromise.ExecEntryT single_message_send_state)]
   (sender receiver : Participant) (msg : single_message) : Label := PersistentLocalState.label sender ({receiver, msg}: single_message_send_state)
 
 public
 def single_message_receive_state_label
-  [ExecTraceTypes]
   [ExecTraceTypes.Has (PersistentLocalState.Compromise.ExecEntryT single_message_receive_state)]
   (receiver : Participant) (msg : single_message) : Label := PersistentLocalState.label receiver ({msg}: single_message_receive_state)
 
 variable
-  [ExecTraceTypes]
   [ExecTraceTypes.Has Communication.Confidential.Compromise.ExecEntryT]
   [ExecTraceTypes.Has (PersistentLocalState.Compromise.ExecEntryT single_message_send_state)]
   [ExecTraceTypes.Has (PersistentLocalState.Compromise.ExecEntryT single_message_receive_state)]
 
-public
-abbrev single_message_state_label (sender receiver: Participant) (msg : single_message) : Label :=
+public abbrev single_message_state_label (sender receiver: Participant) (msg : single_message) : Label :=
     (single_message_send_state_label sender receiver msg).join
     (single_message_receive_state_label receiver msg)
---   (sender receiver: Participant) (msg : single_message) : Label := {
---   isCorrupt tr :=
---     (single_message_send_state_label sender receiver msg).isCorrupt tr ∨
---     (single_message_receive_state_label receiver msg).isCorrupt tr
---   isCorruptLater tr1 tr2 := by
---     grind
--- }
 
-public
-def single_message_label
+public abbrev single_message_label
   (sender receiver : Participant) (msg : single_message) : Label :=
       (Communication.Confidential.CommunicationLabel receiver).join
       (single_message_state_label sender receiver msg)
@@ -209,7 +200,7 @@ instance single_message_receive_state.Invariant : PersistentLocalState.Compromis
 instance single_message_send_event.Invariant : ProtocolEvent.EventInv (single_message_send_event)
 where
   invariant tr ev := ev.msg.payload.Invariant tr ∧
-    ∃ sender', (ev.msg.payload.label tr) = (single_message_label sender' ev.receiver ev.msg)
+    (ev.msg.payload.label tr) = (single_message_label ev.sender ev.receiver ev.msg)
 
 
 -- we don't know where the message came from
@@ -304,12 +295,12 @@ theorem prepare_message.proof (sender receiver : Participant)
         simp [ProtocolEvent.EventInv.invariant]
         constructor
         . grind
-        . grind[single_message_label]
+        . grind
       -- PersistentLocalState.storeLocalState
       step by
         simp only [PersistentLocalState.LocalStateInv.invariant]
         repeat apply And.intro; grind
-        grind[single_message_label]
+        grind
       trivial
 
 @[instance]
@@ -344,10 +335,10 @@ theorem send_message.proof (sender receiver: Participant) (state_id: Nat)
       . grind
       . grind
       . rw[l]
-        grind[single_message_label]
+        grind
     mark_non_monotone st_inv
     step with ⟨ ⟩ by
-      grind[single_message_label]
+      grind
     trivial
 
 @[instance]

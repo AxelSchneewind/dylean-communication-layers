@@ -37,7 +37,7 @@ theorem message_confidentiality
       have send_event_inv := Trace.EventLoggedAt_imp_EventInv _ send_time _ h_trinv h_send_event
       simp [ProtocolEvent.EventInv.invariant] at send_event_inv
       simp_all[single_message_label]--, single_message_state_label, Communication.Confidential.CommunicationLabel]
-      obtain ⟨ bytes_inv, ⟨ sender', send_event_inv ⟩ ⟩ := send_event_inv
+      obtain ⟨ bytes_inv, send_event_inv ⟩ := send_event_inv
       have : (msg.payload.label (tr.prefix send_time)).isCorrupt tr.erase := by grind
       rw[send_event_inv] at this
       simp[Label.joinIsCorrupt] at this
