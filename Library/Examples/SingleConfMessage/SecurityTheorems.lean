@@ -27,7 +27,8 @@ theorem message_confidentiality
     msg.payload.AttackerKnows tr →
     ( -- attacker can only learn message by compromising receiver communication keys or participant states
       Communication.Confidential.participantCompromised tr receiver
-      ∨ ∃ p s r, PersistentLocalState.LocalStateCompromised p ({sender:=s, receiver:=r, msg:=msg}: single_message_state) tr
+      ∨ ∃ p s r, PersistentLocalState.LocalStateCompromised p ({sender:=s, receiver:=r, msg:=msg}: single_message_send_state) tr
+      ∨ ∃ p s r, PersistentLocalState.LocalStateCompromised p ({sender:=s, receiver:=r, msg:=msg}: single_message_receive_state) tr
     ) := by
       -- requires ReachableImpliesInvariant for Communication
       apply Trace.apply_Reachable_implies_Invariant

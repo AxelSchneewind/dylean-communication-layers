@@ -25,7 +25,8 @@ from
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
-  PersistentLocalState.CompromisableState single_message_state
+  PersistentLocalState.CompromisableState single_message_send_state,
+  PersistentLocalState.CompromisableState single_message_receive_state
 
 instance: HasExecTrace where
 
@@ -50,7 +51,11 @@ instance /-[Repr Communication.ExecEntryT]-/ : Repr ExecTrace.Entry where
     | ⟨ 3, r ⟩ => "random: " ++ (repr r.length) ++ "B sampled"
     | ⟨ 4, {ev} ⟩ => "send event " ++ ev.sender ++ ": " ++ (repr ev.msg.payload)
     | ⟨ 5, {ev} ⟩ => "recv event " ++ ev.sender ++ "→" ++ ev.receiver ++ ": " ++ (repr ev.msg.payload)
-    | ⟨ 6, st ⟩ => "state " ++
+    | ⟨ 6, st ⟩ => "send_state " ++
+        match st with
+        | ⟨ 0, ⟨ 0, {st} ⟩  ⟩ => st.participant ++ ": " ++ (repr st.state.msg.payload) ++ " to " ++ st.state.receiver
+        | ⟨ 1, ⟨ 0, ⟨ 0, {ev:={state}} ⟩  ⟩  ⟩ => "corrupted " ++ state.participant ++ ": " ++ (repr state.state.msg.payload) ++ " to " ++ state.state.receiver
+    | ⟨ 7, st ⟩ => "receive_state " ++
         match st with
         | ⟨ 0, ⟨ 0, {st} ⟩  ⟩ => st.participant ++ ": " ++ (repr st.state.msg.payload) ++ " from " ++ st.state.sender
         | ⟨ 1, ⟨ 0, ⟨ 0, {ev:={state}} ⟩  ⟩  ⟩ => "corrupted " ++ state.participant ++ ": " ++ (repr state.state.msg.payload) ++ " from " ++ state.state.sender
@@ -80,7 +85,8 @@ from
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
-  PersistentLocalState.CompromisableState single_message_state,
+  PersistentLocalState.CompromisableState single_message_send_state,
+  PersistentLocalState.CompromisableState single_message_receive_state,
 
 instance: HasProofTrace where
 
@@ -101,7 +107,8 @@ from
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
-  PersistentLocalState.CompromisableState single_message_state,
+  PersistentLocalState.CompromisableState single_message_send_state,
+  PersistentLocalState.CompromisableState single_message_receive_state
 
 #combine +toplevel into SubAttackerKnowledgeTheorem from
   Random,

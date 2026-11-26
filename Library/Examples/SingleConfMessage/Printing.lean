@@ -38,7 +38,12 @@ instance : DY.Printing.PayloadPrinter single_message_receive_event where
   render b e := s!"received {b e.msg.payload}"
   principal e := e.receiver
 
-instance : DY.Printing.PayloadPrinter single_message_state where
+instance : DY.Printing.PayloadPrinter single_message_send_state where
+  tag := "State"
+  render b e := s!"{e.sender} sent: {b e.msg.payload}"
+  principal e := e.sender
+
+instance : DY.Printing.PayloadPrinter single_message_receive_state where
   tag := "State"
   render b e := s!"{e.sender} sent: {b e.msg.payload}"
   principal e := e.sender
@@ -52,7 +57,8 @@ from
   Random,
   ProtocolEvent single_message_send_event,
   ProtocolEvent single_message_receive_event,
-  PersistentLocalState.CompromisableState single_message_state
+  PersistentLocalState.CompromisableState single_message_send_state,
+  PersistentLocalState.CompromisableState single_message_receive_state
 
 def Printers : DY.Printing.Printers :=
   let printers : DY.Printing.Printers := { bytesToString := bytesToString }
