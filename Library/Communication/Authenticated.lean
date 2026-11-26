@@ -328,10 +328,11 @@ theorem sendAuthenticatedAttacker.proof
   unfold sendAuthenticatedAttacker
   dsimp only
   -- appendEntry
-  step with ⟨ fun _ => ExecEntryT.Authenticated sender receiver msg ⟩ by
-    simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Authenticated]
+  let entry := ({sender, receiver, payload:=msg} : ExecEntryT)
+  step with ⟨ fun _ => entry ⟩ by
+    simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]
+    grind
   unfold authenticatedMessageSentAt
-  let entry : ExecEntryT := (ExecEntryT.Authenticated sender receiver msg)
   have h_at?_x : tr.at? x = some entry := by assumption
   -- TODO: make this a reusable theorem? (also needed for receiveAuthenticated)
   have h_erase_at?_x : tr.erase.at? x = some entry := by
@@ -365,10 +366,11 @@ theorem sendAuthenticated.proof
   unfold sendAuthenticated
   dsimp only
   -- appendEntry
-  step with ⟨ fun _ => ExecEntryT.Authenticated sender receiver msg ⟩ by
-    simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Authenticated]
+  let entry := ({sender, receiver, payload:=msg} : ExecEntryT)
+  step with ⟨ fun _ => entry ⟩ by
+    simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]
+    grind
   unfold authenticatedMessageSentAt
-  let entry : ExecEntryT := (ExecEntryT.Authenticated sender receiver msg)
   have h_at?_x : tr.at? x = some entry := by assumption
   -- TODO: make this a reusable theorem? (also needed for receiveAuthenticated)
   have h_erase_at?_x : tr.erase.at? x = some entry := by
