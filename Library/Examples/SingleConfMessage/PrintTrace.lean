@@ -24,7 +24,7 @@ public def print_trace (args : List String) : IO UInt32 := do
   let status : Bool ← match selection with
     | some 0 => DY.Example.SingleConfMessage.do_print DY.Example.SingleConfMessage.honestProtocolRun DY.Example.SingleConfMessage.traceToStr
     | some 1 => DY.Example.SingleConfMessage.do_print DY.Example.SingleConfMessage.compromisedProtocolRun DY.Example.SingleConfMessage.traceToStr
-    | _ => stderr.putStrLn "no protocol run selected"; return 1
+    | _ => stderr.putStrLn "no scenario selected"; return 1
   if status then
     return 0
   else

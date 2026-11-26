@@ -22,17 +22,17 @@ public section
 #combine +toplevel into BytesPrinter from Random, Literal, Concat
 
 instance : DY.Printing.PayloadPrinter single_message_send_event where
-  tag := "Event"
+  tag := "SingleAuthMessage.SendEvent"
   render b e := s!"wants to send {b e.msg.payload}"
   principal e := e.sender
 
 instance : DY.Printing.PayloadPrinter single_message_receive_event where
-  tag := "Event"
+  tag := "SingleAuthMessage.ReceiveEvent"
   render b e := s!"received {b e.msg.payload}"
   principal e := e.receiver
 
 instance : DY.Printing.PayloadPrinter single_message_state where
-  tag := "State"
+  tag := "SingleAuthMessage.State"
   render b e := s!"{e.sender} sent: {b e.msg.payload}"
   principal e := e.sender
 

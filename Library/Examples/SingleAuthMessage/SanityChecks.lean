@@ -86,7 +86,7 @@ end honest
 
 section compromised
 
-def msg : Bytes := Literal.literalToBytes (ByteArray.mk (Array.mk [1,2]))
+def msg : Bytes := Literal.literalToBytes "evil message".toByteArray
 
 def compromisedProtocolRun : Traceful Unit := do
   -- attacker prepares msg for bob

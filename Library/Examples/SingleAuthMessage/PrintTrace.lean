@@ -24,7 +24,7 @@ public def print_trace (args : List String) : IO UInt32 := do
     match selection with
     | some 0 => DY.Example.SingleAuthMessage.do_print DY.Example.SingleAuthMessage.honestProtocolRun DY.Example.SingleAuthMessage.traceToStr
     | some 1 => DY.Example.SingleAuthMessage.do_print DY.Example.SingleAuthMessage.compromisedProtocolRun DY.Example.SingleAuthMessage.traceToStr
-    | _ => stderr.putStrLn "no protocol run selected"; return 1
+    | _ => stderr.putStrLn "no scenario selected"; return 1
   if status then
     return 0
   else
