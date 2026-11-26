@@ -505,12 +505,12 @@ variable
 
 abbrev sendConfidentialAttacker.reachability: ReachabilityConfig where
   Input := Participant × Participant × Bytes
-  PreCond input tr := participantCompromised tr input.fst ∧ input.snd.snd.AttackerKnows tr
+  PreCond input tr := input.snd.snd.AttackerKnows tr
   step input := ⟨ _, sendConfidentialAttacker input.fst input.snd.fst input.snd.snd ⟩
 
 abbrev receiveConfidential.reachability: ReachabilityConfig where
   Input := Participant × Participant × Nat
-  PreCond _input _tr := True
+  PreCond input tr := participantCompromised tr input.snd.fst
   step input := ⟨ _, receiveConfidential input.fst input.snd.fst input.snd.snd ⟩
 
 abbrev compromiseParticipant.reachability: ReachabilityConfig := .make (fun (participant) => compromiseParticipant participant)
