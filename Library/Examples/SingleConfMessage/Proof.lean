@@ -67,16 +67,16 @@ variable [HasBytesInvariants]
 section Labels
 
 public
-abbrev single_message_send_state_label
+def single_message_send_state_label
   [ExecTraceTypes]
   [ExecTraceTypes.Has (PersistentLocalState.Compromise.ExecEntryT single_message_send_state)]
-  (sender receiver : Participant) (msg : single_message) : Label := PersistentLocalState.label sender ({sender, receiver, msg}: single_message_send_state)
+  (sender receiver : Participant) (msg : single_message) : Label := PersistentLocalState.label sender ({receiver, msg}: single_message_send_state)
 
 public
-abbrev single_message_receive_state_label
+def single_message_receive_state_label
   [ExecTraceTypes]
   [ExecTraceTypes.Has (PersistentLocalState.Compromise.ExecEntryT single_message_receive_state)]
-  (sender receiver : Participant) (msg : single_message) : Label := PersistentLocalState.label receiver ({sender, receiver, msg}: single_message_receive_state)
+  (receiver : Participant) (msg : single_message) : Label := PersistentLocalState.label receiver ({msg}: single_message_receive_state)
 
 variable
   [ExecTraceTypes]
@@ -85,45 +85,64 @@ variable
   [ExecTraceTypes.Has (PersistentLocalState.Compromise.ExecEntryT single_message_receive_state)]
 
 public
-def single_message_state_label
-  (msg : single_message) : Label := {
-  isCorrupt tr :=
-    ∃ (sender receiver : Participant),
-    (single_message_send_state_label sender receiver msg).isCorrupt tr ∨
-    (single_message_receive_state_label sender receiver msg).isCorrupt tr
-  isCorruptLater tr1 tr2 := by
-    grind
-}
+abbrev single_message_state_label (sender receiver: Participant) (msg : single_message) : Label :=
+    (single_message_send_state_label sender receiver msg).join
+    (single_message_receive_state_label receiver msg)
+--   (sender receiver: Participant) (msg : single_message) : Label := {
+--   isCorrupt tr :=
+--     (single_message_send_state_label sender receiver msg).isCorrupt tr ∨
+--     (single_message_receive_state_label receiver msg).isCorrupt tr
+--   isCorruptLater tr1 tr2 := by
+--     grind
+-- }
 
 public
 def single_message_label
-  (_sender receiver : Participant) (msg : single_message) : Label :=
-      (Communication.Confidential.CommunicationLabel receiver).join (single_message_state_label msg)
+  (sender receiver : Participant) (msg : single_message) : Label :=
+      (Communication.Confidential.CommunicationLabel receiver).join
+      (single_message_state_label sender receiver msg)
+
+public theorem single_message_label_canflow_send_state
+  : (single_message_label sender receiver msg).canFlow (PersistentLocalState.label sender ({receiver, msg}:single_message_send_state)) tr
+  := by
+    simp[Label.canFlow, single_message_label, single_message_state_label, single_message_send_state_label]
+    grind
+
+public theorem single_message_label_canflow_receive_state
+  : (single_message_label sender receiver msg).canFlow (PersistentLocalState.label sender ({receiver, msg}:single_message_send_state)) tr
+  := by
+    simp[Label.canFlow, single_message_label, single_message_state_label, single_message_send_state_label]
+    grind
 
 public
 theorem single_message_label_canflow_PersistentLocalState_label_sender
   (sender receiver : Participant) (msg : single_message) (tr : ExecTrace)
-  : (single_message_label sender receiver msg).canFlow (PersistentLocalState.label sender ({sender, receiver, msg}:single_message_send_state)) tr
+  : (single_message_label sender receiver msg).canFlow (PersistentLocalState.label sender ({receiver, msg}:single_message_send_state)) tr
   := by
-    simp[Label.canFlow, single_message_label, single_message_state_label]
-    grind[single_message_send_state, single_message_receive_state]
+    simp[Label.canFlow, single_message_label, single_message_state_label, single_message_send_state_label]
+    grind
+
+grind_pattern single_message_label_canflow_PersistentLocalState_label_sender =>
+(PersistentLocalState.label sender ({receiver, msg}:single_message_send_state)).isCorrupt tr
 
 public
 theorem single_message_label_canflow_PersistentLocalState_label_receiver
   (sender receiver : Participant) (msg : single_message) (tr : ExecTrace)
-  : ∀ (sender':Participant), (single_message_label sender receiver msg).canFlow (PersistentLocalState.label receiver ({sender:=sender', receiver, msg}:single_message_receive_state)) tr
+  : (single_message_label sender receiver msg).canFlow (PersistentLocalState.label receiver ({msg}:single_message_receive_state)) tr
   := by
-    simp[Label.canFlow, single_message_label, single_message_state_label]
-    grind[single_message_send_state, single_message_receive_state]
+    simp[Label.canFlow, single_message_label, single_message_state_label, single_message_receive_state_label]
+    grind
 
 public
 theorem single_message_label_canflow_PersistentLocalState_label
   (sender receiver : Participant) (msg : single_message) (tr : ExecTrace)
-  : (single_message_label sender receiver msg).canFlow (PersistentLocalState.label sender ({sender, receiver, msg}:single_message_send_state)) tr
-    ∧
-    ∀ (sender':Participant), (single_message_label sender receiver msg).canFlow (PersistentLocalState.label receiver ({sender:=sender', receiver, msg}:single_message_receive_state)) tr
+  : (single_message_label sender receiver msg).canFlow (PersistentLocalState.label sender ({receiver, msg}:single_message_send_state)) tr
+    ∧ (single_message_label sender receiver msg).canFlow (PersistentLocalState.label receiver ({msg}:single_message_receive_state)) tr
   := by
     grind[single_message_label_canflow_PersistentLocalState_label_sender, single_message_label_canflow_PersistentLocalState_label_receiver]
+
+grind_pattern single_message_label_canflow_PersistentLocalState_label =>
+(PersistentLocalState.label sender ({receiver, msg}:single_message_send_state)).isCorrupt tr
 
 end Labels
 
@@ -132,7 +151,8 @@ instance
   : Communication.Confidential.CommunicationInvariants where
   confidential tr sender receiver bytes :=
       bytes.Invariant tr ∧ bytes.WellFormed tr ∧
-      ∃ sender', (bytes.label tr).canFlow (single_message_label sender' receiver {payload:=bytes}) tr.erase
+      (single_message_label sender receiver {payload:=bytes}).canFlow (bytes.label tr) tr.erase ∧
+      (bytes.label tr).canFlow (single_message_receive_state_label receiver {payload:=bytes})  tr.erase
   confidential_later := by
     intro tr1 tr2 sender receiver payload h_le
     intro h
@@ -144,12 +164,10 @@ instance
 instance single_message_send_state.Invariant : PersistentLocalState.CompromisableLocalStateInv single_message_send_state where
     invariant me st tr :=
         let msg := st.msg
-        let sender := st.sender
         let receiver := st.receiver
-        me = sender ∧
         (
-          IsWellFormed (Bytes.KnowableBy (single_message_label sender receiver msg)) st tr ∧
-          (single_message_label sender receiver msg) = (msg.payload.label tr)
+          IsWellFormed (Bytes.KnowableBy (single_message_label me receiver msg)) st tr ∧
+          (single_message_label me receiver msg) = (msg.payload.label tr)
         )
     invariant_later := by
       grind[Bytes.Publishable_later_fast, Trace.EventLogged_le, Communication.Confidential.participantCompromised_le]
@@ -162,7 +180,7 @@ instance single_message_send_state.Invariant : PersistentLocalState.Compromisabl
       obtain ⟨ h_eq, inv ⟩ := inv
       refine ⟨ ?_, ?_ ⟩
       . grind
-      . have : (single_message_label st.sender st.receiver st.msg).canFlow (PersistentLocalState.label me st) tr.erase := by
+      . have : (single_message_label me st.receiver st.msg).canFlow (PersistentLocalState.label me st) tr.erase := by
           grind[single_message_send_state, single_message_label_canflow_PersistentLocalState_label]
         grind[single_message_label_canflow_PersistentLocalState_label, canFlowTrans]
       done
@@ -170,27 +188,20 @@ instance single_message_send_state.Invariant : PersistentLocalState.Compromisabl
 instance single_message_receive_state.Invariant : PersistentLocalState.CompromisableLocalStateInv single_message_receive_state where
     invariant me st tr :=
         let msg := st.msg
-        let sender := st.sender
-        let receiver := st.receiver
-        me = receiver ∧
         (msg.payload.Publishable tr ∨
-        ∃ sender', IsWellFormed (Bytes.KnowableBy (single_message_label sender' receiver msg)) st tr)
+        IsWellFormed (Bytes.KnowableBy (single_message_receive_state_label me msg)) st tr)
     invariant_later := by
       grind[Bytes.Publishable_later_fast, Trace.EventLogged_le, Communication.Confidential.participantCompromised_le]
     invariant_implies_KnowableBy me st tr := by
       intro inv
       simp [single_message_receive_state.IsWellFormed_eq]
       simp [single_message_receive_state.IsWellFormed_eq] at inv
-      -- simp [Bytes.KnowableBy]
-      -- simp [Bytes.KnowableBy] at inv
-      obtain ⟨ h_eq, inv ⟩ := inv
-      refine ⟨ ?_, ?_ ⟩
-      . grind
-      . rcases inv with pub | inv
-        . grind[canFlowTrans]
-        obtain ⟨ sender', inv ⟩ := inv
-        have := single_message_label_canflow_PersistentLocalState_label_receiver sender' st.receiver st.msg tr.erase st.sender
-        grind[single_message_receive_state, canFlowTrans]
+      have : st.msg.payload.KnowableBy (PersistentLocalState.label me st) tr := by
+        simp_all[Bytes.KnowableBy, single_message_receive_state_label]
+        constructor
+        . grind
+        . grind[single_message_receive_state, canFlowTrans]
+      grind
       done
 
 
@@ -207,7 +218,7 @@ where
   invariant tr ev :=
     ev.msg.payload.Publishable tr ∨ (
       ev.msg.payload.Invariant tr ∧
-      ∃ sender', (ev.msg.payload.label tr).canFlow (single_message_label sender' ev.receiver ev.msg) tr.erase
+      (ev.msg.payload.label tr).canFlow (single_message_receive_state_label ev.receiver ev.msg) tr.erase
     )
 
 
@@ -314,25 +325,29 @@ theorem send_message.proof (sender receiver: Participant) (state_id: Nat)
     step
     -- guard
     step with ⟨ ⟩
-    step with ⟨ ⟩
     -- Communication.sendConfidential
     hoist; step_intro
-    have : st = ({sender, receiver, msg:={payload:=msg}}: single_message_send_state) := by
+    have : st = ({receiver, msg:={payload:=msg}}: single_message_send_state) := by
       -- maybe annotate single_message{_state} with @[grind]
       grind[single_message, single_message_send_state]
-    have : msg.Invariant tr
-      ∧ (msg.label tr) = (single_message_label sender receiver {payload:=msg})
-      ∧ Communication.Confidential.CommunicationInvariants.confidential tr sender receiver msg := by
-      have st_inv : single_message_send_state.Invariant.invariant sender st tr := by assumption
-      simp[PersistentLocalState.LocalStateInv.invariant] at st_inv
-      refine ⟨ ?_, ?_, ?_ ⟩
-      . grind
+    have st_inv : single_message_send_state.Invariant.invariant sender st tr := by assumption
+    simp[PersistentLocalState.LocalStateInv.invariant] at st_inv
+    have i : msg.Invariant tr := by grind
+    have l : (msg.label tr) = (single_message_label sender receiver {payload:=msg}) := by
       . obtain ⟨ h_eq, inv ⟩ := st_inv
         grind
-      . -- does not work with grind only?
-        simp[Communication.Confidential.CommunicationInvariants.confidential]
-        grind
-    step with ⟨ ⟩ by grind[single_message_label]
+    have c : Communication.Confidential.CommunicationInvariants.confidential tr sender receiver msg := by
+      -- does not work with grind only?
+      simp[Communication.Confidential.CommunicationInvariants.confidential]
+      refine ⟨ ?_,?_,?_,?_ ⟩
+      . grind
+      . grind
+      . grind
+      . rw[l]
+        grind[single_message_label]
+    mark_non_monotone st_inv
+    step with ⟨ ⟩ by
+      grind[single_message_label]
     trivial
 
 @[instance]
@@ -360,27 +375,19 @@ theorem receive_message.proof
         . left; trivial
         . simp[Communication.Confidential.CommunicationInvariants.confidential] at inv
           right; grind
+
       -- PersistentLocalState.storeLocalState
       hoist; step_intro
       have : single_message_receive_state.Invariant.invariant receiver state tr := by
         simp[PersistentLocalState.LocalStateInv.invariant]
-        refine ⟨ ?_, ?_ ⟩
-        . grind
         let ⟨ i, recv_event_inv ⟩ := Trace.EventLogged_imp_EventInv ev tr h (by assumption)
         simp[ProtocolEvent.EventInv.invariant] at recv_event_inv
         rcases recv_event_inv with pub | inv
         . left
           grind
         . right
-          obtain ⟨ bytes_inv, sender', inv ⟩ := inv
-          refine ⟨ sender', ?_ ⟩
           simp[single_message_receive_state.IsWellFormed_eq, Bytes.KnowableBy]
-          have : msg = state.msg := by grind
-          have : msg = ev.msg := by grind
-          simp_all
-          constructor
-          . grind[Bytes.Publishable]
-          . grind
+          grind
         done
       step with ⟨ ⟩ by grind
       grind

@@ -6,6 +6,7 @@ import DY.Meta.Utils
 import DY.Actions.PersistentLocalState
 import all DY.Bytes.AttackerKnowledge
 import all DY.Trace.Invariant
+import all DY.Label.Labels
 public import Library.Examples.SingleConfMessage.Specification
 public import Library.Examples.SingleConfMessage.Proof
 import all Library.Examples.SingleConfMessage.Proof
@@ -27,13 +28,17 @@ theorem message_confidentiality
     msg.payload.AttackerKnows tr →
     ( -- attacker can only learn message by compromising receiver communication keys or participant states
       Communication.Confidential.participantCompromised tr receiver
-      ∨ ∃ p s r, PersistentLocalState.LocalStateCompromised p ({sender:=s, receiver:=r, msg:=msg}: single_message_send_state) tr
-      ∨ ∃ p s r, PersistentLocalState.LocalStateCompromised p ({sender:=s, receiver:=r, msg:=msg}: single_message_receive_state) tr
+      ∨ ∃ s r, PersistentLocalState.LocalStateCompromised s ({receiver:=r, msg:=msg}: single_message_send_state) tr
+      ∨ ∃ r, PersistentLocalState.LocalStateCompromised r ({msg:=msg}: single_message_receive_state) tr
     ) := by
       -- requires ReachableImpliesInvariant for Communication
       apply Trace.apply_Reachable_implies_Invariant
       intro tr h_trinv h_send_event h_known
       have send_event_inv := Trace.EventLoggedAt_imp_EventInv _ send_time _ h_trinv h_send_event
       simp [ProtocolEvent.EventInv.invariant] at send_event_inv
-      simp_all[single_message_label, single_message_state_label, Communication.Confidential.CommunicationLabel]
-      grind
+      simp_all[single_message_label]--, single_message_state_label, Communication.Confidential.CommunicationLabel]
+      obtain ⟨ bytes_inv, ⟨ sender', send_event_inv ⟩ ⟩ := send_event_inv
+      have : (msg.payload.label (tr.prefix send_time)).isCorrupt tr.erase := by grind
+      rw[send_event_inv] at this
+      simp[Label.joinIsCorrupt] at this
+      grind[Communication.Confidential.CommunicationLabel, single_message_send_state_label, single_message_receive_state_label]

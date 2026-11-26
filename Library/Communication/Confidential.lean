@@ -6,6 +6,8 @@ public import DY.Label.Basic
 public import DY.Actions.PersistentLocalState
 import DY.Meta.Step
 
+import all DY.Trace.Invariant
+
 public import DyleanExtensions
 
 namespace DY.Communication.Confidential
@@ -65,42 +67,29 @@ public
 instance [Repr Bytes] : Repr ExecEntryT where
   reprPrec e _ := "communication: " ++ (repr e.payload) ++ " (" ++ e.sender ++ " → " ++ e.receiver ++ ")"
 
-
--- constructors
-@[simp, grind]
-public
-def ExecEntryT.Confidential (sender receiver : Participant) (payload : Bytes) : ExecEntryT := { payload, sender, receiver}
-
 -- Differs from authenticated
 public
 def baseAttackerKnowledge [ExecTraceTypes] [ExecTraceTypes.Has Compromise.ExecEntryT]: SubBaseAttackerKnowledge ExecEntryT where
   attackerKnows tr entry msg := entry.payload = msg ∧ (participantCompromised tr entry.receiver)
 
 
+variable [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
 
 -- Still add attacker function here that does not require higher layer predicates
 -- and requires message to be known?
 -- How about receive? Attacker can learn from trace entry after compromising.
 public
-def sendConfidentialAttacker
-  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
-  (sender receiver : Participant) (msg: Bytes): Traceful Nat :=
-  do
-  let entry: ExecEntryT := ExecEntryT.Confidential sender receiver msg
+def sendConfidentialAttacker (sender receiver : Participant) (msg: Bytes): Traceful Nat := do
+  let entry := ({sender, receiver, payload:=msg}: ExecEntryT)
   appendEntry entry
 
 public
-def sendConfidential
-  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
-  (sender receiver : Participant) (msg: Bytes): Traceful Nat :=
-  do
-  let entry: ExecEntryT := ExecEntryT.Confidential sender receiver msg
+def sendConfidential (sender receiver : Participant) (msg: Bytes): Traceful Nat := do
+  let entry := ({sender, receiver, payload:=msg}: ExecEntryT)
   appendEntry entry
 
 public
-def receiveConfidential
-  [ExecTraceTypes] [ExecTraceTypes.Has ExecEntryT]
-  (_sender receiver : Participant) (handle: Nat): Traceful Bytes :=
+def receiveConfidential (_sender receiver : Participant) (handle: Nat): Traceful Bytes :=
   do
   let entry: ExecEntryT ← getEntryExtended handle
   -- differs from authenticated
@@ -110,26 +99,17 @@ def receiveConfidential
 -- definitions like MessageSentAt from Network.lean
 @[expose]
 public
-def confidentialMessageSentAt
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has ExecEntryT]
-  (tr : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat) :=
-      tr.at? i = some (ExecEntryT.mk bytes sender receiver)
+def confidentialMessageSentAt (tr : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat) :=
+  tr.at? i = some (ExecEntryT.mk bytes sender receiver)
 
 @[expose, simp]
 public
-def confidentialMessageSent
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has ExecEntryT]
-  (tr : ExecTrace) (sender receiver : Participant) (bytes : Bytes) :=
-      exists i, confidentialMessageSentAt tr sender receiver bytes i
+def confidentialMessageSent (tr : ExecTrace) (sender receiver : Participant) (bytes : Bytes) :=
+  exists i, confidentialMessageSentAt tr sender receiver bytes i
 
 public
-theorem confidentialMessageSentAt_le
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has ExecEntryT]
-  (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat) :
-    tr1 ≤ tr2
+theorem confidentialMessageSentAt_le (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat)
+  : tr1 ≤ tr2
     → confidentialMessageSentAt tr1 sender receiver bytes i
     → confidentialMessageSentAt tr2 sender receiver bytes i
   := by
@@ -140,15 +120,12 @@ grind_pattern [grind_later] confidentialMessageSentAt_le =>
 tr1 ≤ tr2, confidentialMessageSentAt tr1 sender receiver bytes i
 
 public
-theorem confidentialMessageSentAt_le'
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has ExecEntryT]
-  (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat)
-    : tr1 ≤ tr2
+theorem confidentialMessageSentAt_le' (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) (i : Nat)
+  : tr1 ≤ tr2
     → confidentialMessageSentAt tr2 sender receiver bytes i
     → i < tr1.length
     → confidentialMessageSentAt tr1 sender receiver bytes i
-    := by
+  := by
       unfold confidentialMessageSentAt
       grind[Trace.at?_eq_some]
 
@@ -156,43 +133,36 @@ grind_pattern [grind_later] confidentialMessageSentAt_le' =>
 tr1 ≤ tr2, i < tr1.length, confidentialMessageSentAt tr1 sender receiver bytes i
 
 public
-theorem confidentialMessageSent_le
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has ExecEntryT]
-  (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes) :
-    tr1 ≤ tr2
+theorem confidentialMessageSent_le (tr1 tr2 : ExecTrace) (sender receiver : Participant) (bytes : Bytes)
+  : tr1 ≤ tr2
     → confidentialMessageSent tr1 sender receiver bytes
     → confidentialMessageSent tr2 sender receiver bytes
   := by
     unfold confidentialMessageSent
-    intro le sent1
-    let later := confidentialMessageSentAt_le tr1 tr2 sender receiver bytes
-    grind
+    have := confidentialMessageSentAt_le tr1 tr2 sender receiver bytes
+    grind[confidentialMessageSentAt_le]
 
 grind_pattern [grind_later] confidentialMessageSent_le =>
 tr1 ≤ tr2, confidentialMessageSent tr1 sender receiver bytes
 
-
+variable [ExecTraceTypes.Has Compromise.ExecEntryT]
 omit [BytesFunctor]
+
 public
 theorem participantCompromisedAt_le
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has Compromise.ExecEntryT]
-  (tr1 tr2 : ExecTrace) (participant : Participant) (i : Nat) :
-    tr1 ≤ tr2 → participantCompromisedAt tr1 participant i → participantCompromisedAt tr2 participant i
-    := by
-      unfold participantCompromisedAt
-      grind
+    (tr1 tr2 : ExecTrace) (participant : Participant) (i : Nat)
+  : tr1 ≤ tr2
+    → participantCompromisedAt tr1 participant i → participantCompromisedAt tr2 participant i
+  := by
+    unfold participantCompromisedAt
+    grind
 
 grind_pattern [grind_later] participantCompromisedAt_le =>
 tr1 ≤ tr2, participantCompromisedAt tr1 participant i
 
 
-omit [BytesFunctor]
 public
 theorem participantCompromised_le
-  [ExecTraceTypes]
-  [ExecTraceTypes.Has Compromise.ExecEntryT]
   (tr1 tr2 : ExecTrace) (participant : Participant) :
     tr1 ≤ tr2 → participantCompromised tr1 participant → participantCompromised tr2 participant
     := by
@@ -260,35 +230,14 @@ instance
   [CommunicationInvariants]
   : SubTraceInvariant ProofEntryT
 where
-  invariant tr entry := (entry.payload.label tr).canFlow (CommunicationLabel entry.receiver) tr.erase
-    ∧ entry.payload.Invariant tr
-    ∧ ((CommunicationInvariants.confidential tr entry.sender entry.receiver entry.payload)
+  invariant tr entry :=
       -- TODO: allow transfer of publishable messages. Then invariant does not hold.
       -- this has to be handled here in order for attacker send function to work.
-      ∨ entry.payload.Publishable tr
-    )
+      entry.payload.Publishable tr
+    ∨ (entry.payload.Invariant tr
+    ∧ (entry.payload.label tr).canFlow (CommunicationLabel entry.receiver) tr.erase
+    ∧ (CommunicationInvariants.confidential tr entry.sender entry.receiver entry.payload))
 
--- public
--- theorem confidentialMessageSentAt_imp_higher_layer_invariants
---   [ExecTraceTypes] [ProofTraceTypes] [TraceInvariant] [BytesInvariants]
---   [CommunicationInvariants]
---   [ExecTraceTypes.Has Compromise.ExecEntryT] [ProofTraceTypes.Has Compromise.ProofEntryT] [TraceInvariant.Has Compromise.ProofEntryT]
---   [ExecTraceTypes.Has ExecEntryT] [ProofTraceTypes.Has ProofEntryT] [TraceInvariant.Has ProofEntryT]
---   (sender receiver: Participant) (bytes: Bytes)
---   (i: Nat)
---   (tr: ProofTrace)
---   : tr.Invariant →
---     confidentialMessageSentAt tr.erase sender receiver bytes i →
---     (CommunicationInvariants.confidential (tr.prefix i) sender receiver bytes ∨ participantCompromised (tr.erase.prefix i) sender)
--- := by
---   intro h_inv h_ev
---   have := Trace.invariant_at tr i (by grind [confidentialMessageSentAt]) h_inv
---   suffices SubTraceInvariant.invariant (tr.prefix i) ({sender, receiver, payload:=bytes}:ExecEntryT) by
---     simp_all [SubTraceInvariant.invariant]
---     sorry
---   rewrite [← TraceInvariant.Has.inv_commutes]
---   simp [confidentialMessageSentAt, Trace.at?_eq_some, Trace.erase_at, ProofTrace.Entry.erase_eq_imp_exists, ErasableProofEntry.erase] at h_ev
---   grind
 
 
 -- if attacker learns bytes from entry,
@@ -320,8 +269,11 @@ where
       have : (CommunicationLabel entry.receiver).isCorrupt tr := by
         simp[CommunicationLabel]
         grind[participantCompromised_le]
-      have : (entry.payload.label trBefore).canFlow (CommunicationLabel entry.receiver) tr := by grind
-      grind[Label.canFlow]
+      obtain ⟨ pub, invBefore ⟩ := invBefore
+      . grind
+      . have : (entry.payload.label trBefore).canFlow (CommunicationLabel entry.receiver) tr := by grind
+        grind[Label.canFlow]
+      done
 
 @[instance]
 theorem compromiseParticipant.proof
@@ -365,12 +317,11 @@ theorem sendConfidentialAttacker.proof
   unfold sendConfidentialAttacker
   dsimp only
   -- appendEntry
-  step with ⟨ fun _ => ExecEntryT.Confidential sender receiver msg ⟩ by
-    simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Confidential]
-    have : (msg.label tr).canFlow Label.pub tr.erase := by grind
-    grind[canFlowTrans]
+  let entry : ExecEntryT := ({sender, receiver, payload:=msg}:ExecEntryT)
+  step with ⟨ fun _ => entry ⟩ by
+    simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]
+    grind
   unfold confidentialMessageSentAt
-  let entry : ExecEntryT := (ExecEntryT.Confidential sender receiver msg)
   have h_at?_x : tr.at? x = some entry := by assumption
   -- TODO: make this a reusable theorem? (also needed for receiveConfidential)
   have h_erase_at?_x : tr.erase.at? x = some entry := by
@@ -405,10 +356,11 @@ theorem sendConfidential.proof
   unfold sendConfidential
   dsimp only
   -- appendEntry
-  step with ⟨ fun _ => ExecEntryT.Confidential sender receiver msg ⟩ by
-    simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant, ExecEntryT.Confidential]
+  let entry : ExecEntryT := ({sender, receiver, payload:=msg}:ExecEntryT)
+  step with ⟨ fun _ => entry ⟩ by
+    simp_all [ErasableProofEntry.erase, SubTraceInvariant.invariant]
+    grind
   unfold confidentialMessageSentAt
-  let entry : ExecEntryT := (ExecEntryT.Confidential sender receiver msg)
   have h_at?_x : tr.at? x = some entry := by assumption
   -- TODO: make this a reusable theorem? (also needed for receiveConfidential)
   have h_erase_at?_x : tr.erase.at? x = some entry := by
@@ -434,32 +386,48 @@ theorem receiveConfidential.proof
   : HoareTriple
     (receiveConfidential sender receiver handle)
     (fun _ => True)
-    -- TODO: ensure predicate here?
-    (fun msg tr => CommunicationInvariants.confidential tr sender receiver msg)
+    (fun msg tr =>
+      msg.Publishable tr ∨ (
+        msg.Invariant tr ∧
+        -- we don't know if the message actually came from the expected sender
+        ∃ sender', CommunicationInvariants.confidential tr sender' receiver msg
+      )
+    )
 := by
   apply HoareTriple.mk
   unfold receiveConfidential
   -- getEntry
   step
-  -- get postcondition of getEntry
+  -- postcondition of getEntry
   have h_entry : ∃ proofEntry:ProofEntryT,
       entry = ErasableProofEntry.erase proofEntry ∧
       SubTraceInvariant.invariant (tr.prefix handle) proofEntry ∧
       tr.at? handle = some proofEntry := by grind
-  obtain ⟨ proofEntry, h_entry ⟩ := h_entry
-  have entry_at_handle : tr.erase.at? handle = some entry := by
-    simp[Trace.at?_eq_some, ErasableProofEntry.erase] at h_entry
-    simp[Trace.at?_eq_some, Trace.erase_at, ProofTrace.Entry.erase_eq_imp_exists, ErasableProofEntry.erase]
+  obtain ⟨ proof_entry, h_entry ⟩ := h_entry
+  have : proof_entry = entry := by
+    simp[ErasableProofEntry.erase] at h_entry
     grind
-  clear h_entry
-  -- clear postcondition
   rename_i p; clear p
+  have : tr.at? handle = some proof_entry := by grind
+  clear h_entry
   -- guard
   step
   -- pure
   step
-  -- TODO: should follow from trace invariant?
-  sorry
+  have h_entry_at : tr.at? handle = some proof_entry := by assumption
+  have entry_inv : SubTraceInvariant.invariant (tr.prefix handle) proof_entry := by
+    let i := Trace.invariant_at tr handle (by grind) h
+    rewrite[←TraceInvariant.Has.inv_commutes (ProofEntryT := ProofEntryT)]
+    rewrite[TraceInvariant.Has.inv_commutes]
+    grind[Trace.at?_eq_some, Trace.invariant_at, TraceInvariant.Has.inv_commutes]
+  simp[SubTraceInvariant.invariant] at entry_inv
+  obtain ⟨ pub, entry_inv ⟩ := entry_inv
+  . grind
+  . right
+    refine ⟨ ?_, entry.sender, ?_ ⟩
+    . grind
+    . grind[CommunicationInvariants.confidential_later]
+
 
 end Proof
 
@@ -501,7 +469,8 @@ variable
   [TraceInvariant.Has ProofEntryT]  [TraceInvariant.Has Compromise.ProofEntryT]
   [BaseAttackerKnowledge] [AttackerKnowledge]
 
-@[expose] public section
+@[expose]
+public section
 -- using abbrev instead of def allows these to be unfolded by simp
 
 abbrev sendConfidentialAttacker.reachability: ReachabilityConfig where
@@ -514,21 +483,20 @@ abbrev receiveConfidential.reachability: ReachabilityConfig where
   PreCond input tr := participantCompromised tr input.snd.fst
   step input := ⟨ _, receiveConfidential input.fst input.snd.fst input.snd.snd ⟩
 
-abbrev compromiseParticipant.reachability: ReachabilityConfig := .make (fun (participant) => compromiseParticipant participant)
+abbrev compromiseParticipant.reachability: ReachabilityConfig := .make compromiseParticipant
 
 
 -- analogous to LongTermKeys
-public
 def reachability.internal (i:Fin 3) : ReachabilityConfig := match i with
-      | 0 => compromiseParticipant.reachability
-      | 1 => receiveConfidential.reachability
-      | 2 => sendConfidentialAttacker.reachability
-end
+  | 0 => compromiseParticipant.reachability
+  | 1 => receiveConfidential.reachability
+  | 2 => sendConfidentialAttacker.reachability
 
-@[expose]
-public
+
 def reachability : ReachabilityConfig :=
   .combine reachability.internal
+
+end
 
 -- required in order to use the individual configs directly
 public instance: ReachabilityConfig.HasStep compromiseParticipant.reachability reachability := inferInstanceAs <| ReachabilityConfig.HasStep (reachability.internal 0) (.combine (reachability.internal))

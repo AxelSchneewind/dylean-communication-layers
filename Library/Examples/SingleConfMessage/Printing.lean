@@ -40,13 +40,13 @@ instance : DY.Printing.PayloadPrinter single_message_receive_event where
 
 instance : DY.Printing.PayloadPrinter single_message_send_state where
   tag := "State"
-  render b e := s!"{e.sender} sent: {b e.msg.payload}"
-  principal e := e.sender
+  render b e := s!"sent: {b e.msg.payload}"
+  principal _e := ""
 
 instance : DY.Printing.PayloadPrinter single_message_receive_state where
   tag := "State"
-  render b e := s!"{e.sender} sent: {b e.msg.payload}"
-  principal e := e.sender
+  render b e := s!"received: {b e.msg.payload}"
+  principal _e := ""
 
 #combine +toplevel into
   entryPrinter

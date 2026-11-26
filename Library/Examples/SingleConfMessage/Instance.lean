@@ -50,15 +50,15 @@ instance /-[Repr Communication.ExecEntryT]-/ : Repr ExecTrace.Entry where
         | ⟨ 0, {ev} ⟩ => repr ev
     | ⟨ 3, r ⟩ => "random: " ++ (repr r.length) ++ "B sampled"
     | ⟨ 4, {ev} ⟩ => "send event " ++ ev.sender ++ ": " ++ (repr ev.msg.payload)
-    | ⟨ 5, {ev} ⟩ => "recv event " ++ ev.sender ++ "→" ++ ev.receiver ++ ": " ++ (repr ev.msg.payload)
+    | ⟨ 5, {ev} ⟩ => "recv event " ++ ev.receiver ++ ": " ++ (repr ev.msg.payload)
     | ⟨ 6, st ⟩ => "send_state " ++
         match st with
         | ⟨ 0, ⟨ 0, {st} ⟩  ⟩ => st.participant ++ ": " ++ (repr st.state.msg.payload) ++ " to " ++ st.state.receiver
         | ⟨ 1, ⟨ 0, ⟨ 0, {ev:={state}} ⟩  ⟩  ⟩ => "corrupted " ++ state.participant ++ ": " ++ (repr state.state.msg.payload) ++ " to " ++ state.state.receiver
     | ⟨ 7, st ⟩ => "receive_state " ++
         match st with
-        | ⟨ 0, ⟨ 0, {st} ⟩  ⟩ => st.participant ++ ": " ++ (repr st.state.msg.payload) ++ " from " ++ st.state.sender
-        | ⟨ 1, ⟨ 0, ⟨ 0, {ev:={state}} ⟩  ⟩  ⟩ => "corrupted " ++ state.participant ++ ": " ++ (repr state.state.msg.payload) ++ " from " ++ state.state.sender
+        | ⟨ 0, ⟨ 0, {st} ⟩  ⟩ => st.participant ++ ": " ++ (repr st.state.msg.payload)
+        | ⟨ 1, ⟨ 0, ⟨ 0, {ev:={state}} ⟩  ⟩  ⟩ => "corrupted " ++ state.participant ++ ": " ++ (repr state.state.msg.payload)
 
 def reprHelper [Repr ExecTrace.Entry] : ExecTrace → Std.Format
   | tr  => (tr.toArray.map repr).foldl (fun x y => x ++ "\n" ++ y) ""

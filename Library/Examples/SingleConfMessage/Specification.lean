@@ -61,15 +61,12 @@ deriving DecidableEq
 
 public
 structure single_message_send_state where
-  sender : Participant
   receiver : Participant
   msg : single_message
 deriving DecidableEq
 
 public
 structure single_message_receive_state where
-  sender : Participant
-  receiver : Participant
   msg : single_message
 deriving DecidableEq
 
@@ -82,7 +79,6 @@ deriving DecidableEq
 
 public
 structure single_message_receive_event where
-  sender : Participant
   receiver : Participant
   msg : single_message
 deriving DecidableEq
@@ -118,9 +114,9 @@ grind_pattern [grind_later] single_message.IsWellFormed_eq => IsWellFormed pre x
 public
 instance single_message_send_state.ps : ParseableSerializeable single_message_send_state := .make <|
   .triviallyIsomorphic
-  (.prod .unboundedString (.prod .unboundedString single_message.ps.mf))
-  (fun ⟨ sender, receiver, msg ⟩ => {sender, receiver, msg} )
-  (fun { sender, receiver, msg } => ⟨sender, receiver, msg⟩ )
+  (.prod .unboundedString single_message.ps.mf)
+  (fun ⟨ receiver, msg ⟩ => {receiver, msg} )
+  (fun { receiver, msg } => ⟨receiver, msg⟩ )
   (by grind)
   (by grind)
 
@@ -139,9 +135,9 @@ grind_pattern [grind_later] single_message_send_state.IsWellFormed_eq => IsWellF
 public
 instance single_message_receive_state.ps : ParseableSerializeable single_message_receive_state := .make <|
   .triviallyIsomorphic
-  (.prod .unboundedString (.prod .unboundedString single_message.ps.mf))
-  (fun ⟨ sender, receiver, msg ⟩ => {sender, receiver, msg} )
-  (fun { sender, receiver, msg } => ⟨sender, receiver, msg⟩ )
+  (.bytes)
+  (fun payload => { msg:={payload}} )
+  (fun { msg } => msg.msg.payload )
   (by grind)
   (by grind)
 
@@ -198,13 +194,12 @@ def prepare_message (sender receiver : Participant) : Traceful Nat := do
   let payload ← Random.genRand 32
   let msg : single_message := { payload }
   ProtocolEvent.logEvent ({ sender, receiver, msg } : single_message_send_event)
-  let state_id ← PersistentLocalState.storeLocalState sender ({sender, receiver, msg} : single_message_send_state)
+  let state_id ← PersistentLocalState.storeLocalState sender ({receiver, msg} : single_message_send_state)
   return state_id
 
 public
 def send_message (sender receiver : Participant) (state_id:Nat) : Traceful Nat := do
   let st:single_message_send_state ← PersistentLocalState.getLocalState sender state_id
-  guard (st.sender = sender)
   guard (st.receiver = receiver)
   Communication.Confidential.sendConfidential sender receiver st.msg.payload
 
@@ -212,8 +207,8 @@ public
 def receive_message (sender receiver : Participant) (msg_id : Nat) : Traceful Nat := do
   let msg_bytes ← Communication.Confidential.receiveConfidential sender receiver msg_id
   let msg : single_message := {payload:=msg_bytes}
-  ProtocolEvent.logEvent ({sender, receiver, msg} : single_message_receive_event )
-  let state_id ← PersistentLocalState.storeLocalState receiver ({sender,receiver, msg} : single_message_receive_state)
+  ProtocolEvent.logEvent ({receiver, msg} : single_message_receive_event )
+  let state_id ← PersistentLocalState.storeLocalState receiver ({msg} : single_message_receive_state)
   return state_id
 
 end Specification
