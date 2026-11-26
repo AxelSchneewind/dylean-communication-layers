@@ -59,6 +59,7 @@ structure ExecEntryT where
   payload : Bytes
   sender : Participant
   receiver : Participant
+  deriving DecidableEq
 
 public
 instance [Repr Bytes] : Repr ExecEntryT where
